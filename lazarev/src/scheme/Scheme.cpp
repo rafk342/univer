@@ -27,23 +27,14 @@ Relay r_4Str("4Str");
 Relay r_2Str("2Str");
 Relay r_ChPZ("ChPZ");
 
+
 void ResetCoils()
 {
-	r_ChGS.GetCoil()->ResetCoil();
-	r_ChBS.GetCoil()->ResetCoil();
-	r_ChIP.GetCoil()->ResetCoil();
-	r_Ch1M.GetCoil()->ResetCoil();
-	r_Ch2M.GetCoil()->ResetCoil();
-	r_ChDP.GetCoil()->ResetCoil();
-	r_24SP.GetCoil()->ResetCoil();
-	r_1P.GetCoil()->ResetCoil();
-	r_2P.GetCoil()->ResetCoil();
-	r_4P.GetCoil()->ResetCoil();
-	r_4Str.GetCoil()->ResetCoil();
-	r_2Str.GetCoil()->ResetCoil();
-	r_ChPZ.GetCoil()->ResetCoil();
+	for (auto& relay : { &r_ChGS, &r_ChBS, &r_ChIP, &r_Ch1M, &r_Ch2M, &r_ChDP, &r_24SP, &r_1P, &r_2P, &r_4P, &r_4Str, &r_2Str, &r_ChPZ })
+	{
+		relay->GetCoil()->ResetCoil();
+	}
 }
-
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -84,7 +75,7 @@ ContactType_e	Contact::GetContactType() { return m_ContactType; }
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//									segments contacts
+//									segment contacts
 
 
 
@@ -238,23 +229,34 @@ void RelayCoil::SendSignalThroughItself(CoilContact* sender, bool signal)
 
 void RelayCoil::ResetCoil()
 {
+	wasActiveOnPrevFrame = isActiveOnThisFrame;
+
+	if (groupToCheck)
+	{
+		if (groupToCheck->IsUsed())
+		{
+			return;
+		}
+	}
+
 	isActiveOnThisFrame = false;
 	m_sprite.setColor(sf::Color(0, 0, 0, 255));
 }
 
 
-bool RelayCoil::isActive() { return isActiveOnThisFrame; }
-void RelayCoil::SetState(bool state) { isActiveOnThisFrame = state; }
-CoilContact* RelayCoil::GetContact_1() { return &m_Contacts[0]; }
-CoilContact* RelayCoil::GetContact_2() { return &m_Contacts[1]; }
-
-void RelayCoil::DrawCoil() { RenderRequests::getWindow()->draw(m_sprite); }
+bool			RelayCoil::isActive() { return isActiveOnThisFrame; }
+void			RelayCoil::SetState(bool state) { isActiveOnThisFrame = state; }
+CoilContact*	RelayCoil::GetContact_1() { return &m_Contacts[0]; }
+CoilContact*	RelayCoil::GetContact_2() { return &m_Contacts[1]; }
+void			RelayCoil::setGroupToCheck(RelayContactsGroup* group) { groupToCheck = group; }
+void			RelayCoil::DrawCoil() { RenderRequests::getWindow()->draw(m_sprite); }
 
 void RelayCoil::setLeftContactPos(sf::Vector2f point)
 {
 	point.y -= 73/2;
 	SetPosition(point);
 }
+
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -306,6 +308,8 @@ void RelayContactsGroup::ManageSpriteState()
 
 void RelayContactsGroup::SendSignalThroughItself(RelayContact* sender, bool signal)
 {
+	IsUsedOnThisFrame = true;
+
 	auto relay_state = self_relay->GetRelayState();
 	auto sender_name = sender->getContactName();
 	
@@ -328,20 +332,18 @@ void RelayContactsGroup::SendSignalThroughItself(RelayContact* sender, bool sign
 }
 
 
+
 void RelayContactsGroup::Draw()
 {
 	ManageSpriteState();
 	RenderRequests::getWindow()->draw(m_sprite);
 }
 
-RelayContact* RelayContactsGroup::getContact(RelayContactName_e name)
-{
-	return &m_Contacts[name];
-}
+RelayContact*	RelayContactsGroup::getContact(RelayContactName_e name) { return &m_Contacts[name]; }
+Relay*			RelayContactsGroup::GetSelfRelay() { return self_relay; }
 
-
-Relay* RelayContactsGroup::GetSelfRelay() { return self_relay; }
-
+void			RelayContactsGroup::Reset() { IsUsedOnThisFrame = false; }
+bool			RelayContactsGroup::IsUsed() { return IsUsedOnThisFrame; }
 
 
 
@@ -350,7 +352,9 @@ Relay* RelayContactsGroup::GetSelfRelay() { return self_relay; }
 // 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+
 Relay::Relay(const char* name) : name(name) {}
+
 
 void Relay::UpdateState()
 {
@@ -442,6 +446,7 @@ SchemeSegments::SchemeSegments()
 	AttachContactAsDestination(r_ChPZ.GetCoil()->GetContact_2(),					m_PathSegmentsMap.at("s2_5_1")->GetContact_1());
 
 	r_ChPZ.GetCoil()->setLeftContactPos({1310, 1692});
+	r_ChPZ.GetCoil()->setGroupToCheck(m_ContactGroupsMap.at(s2_c_CHPZ));
 }
 
 
@@ -459,6 +464,9 @@ void SchemeSegments::ResetSegments()
 {
 	for (auto ptr : m_PathSegments)
 		ptr->ResetSegment();
+	
+	for (auto [v1, v2] : m_ContactGroupsMap)
+		v2->Reset();
 }
 
 
@@ -488,12 +496,17 @@ void SchemeSegments::SendSignalFromEntry() { s2_entry_segment->SendSignalThrough
 
 
 
-Scheme::Scheme() {}
+Scheme::Scheme() 
+{
+	
+}
 
 void Scheme::DrawScheme()
 {
-	ResetCoils();
+	r_ChPZ.GetCoil()->ResetCoil();
 	m_SchemeSegments.ResetSegments();
+
+
 
 	static ImageButton chbs_btn("F:\\source\\sfml_test_app\\sfml_test_app\\resources\\buttons.png");
 	static ImageButton m_btn("F:\\source\\sfml_test_app\\sfml_test_app\\resources\\buttons.png");
@@ -526,8 +539,11 @@ void Scheme::DrawScheme()
 	r_ChBS.GetCoil()->SetState(coil_flag2);
 
 	m_SchemeSegments.SendSignalFromEntry();
+
+
 	m_SchemeSegments.DrawSegments();
 	m_Overlay.DrawOverlay();
+
 #if m_debug
 	std::cout << "\n\n\n\n";
 #endif

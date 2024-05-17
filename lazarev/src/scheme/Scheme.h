@@ -116,14 +116,18 @@ enum ContactsGroupName_e
 class Contact
 {
 protected:
+
 	ContactType_e			m_ContactType;
 	std::vector<Contact*>	destinations;
 
 	Contact(ContactType_e Type);
+
 public:
+
 	ContactType_e	GetContactType();
 	void			PushContactAsDestination(Contact* contact);
 	void			SendSignal_ToDestinationContacts(bool signal);
+
 };
 
 
@@ -131,20 +135,26 @@ public:
 class PathSegmentContact : public Contact
 {
 	PathSegment* self_segment = nullptr;
+
 public:
+
 	PathSegmentContact();
 	PathSegmentContact(PathSegment* segment);
 	void ConnectToSegment(PathSegment* segment);
 	void SendSignalToSegment(bool signal);
+
 };
 
 
 class CoilContact : public Contact
 {
 	RelayCoil* selfCoil = nullptr;
+
 public:
+
 	CoilContact(RelayCoil* coil);
 	void SendSignalToCoil(bool signal);
+
 };
 
 
@@ -158,6 +168,7 @@ public:
 	RelayContact(RelayContactName_e name, RelayContactsGroup* selfGroup);
 	RelayContactName_e getContactName();
 	void SendSignalToGroup(bool signal);
+
 };
 
 
@@ -189,6 +200,7 @@ public:
 	void ResetSegment();
 	bool isActive();
 	void SendSignalThroughItself(PathSegmentContact* sender, bool signal);
+
 };
 
 
@@ -203,9 +215,14 @@ public:
 
 class RelayCoil : public WidgetsBase
 {
-	CoilContact m_Contacts[2];
-	bool		isActiveOnThisFrame = false;
+	CoilContact			m_Contacts[2];
+	bool				isActiveOnThisFrame = false;
+	bool				wasActiveOnPrevFrame = false;
+	RelayContactsGroup*	groupToCheck = nullptr;
+
+
 public:
+
 	RelayCoil();
 	CoilContact* GetContact_1();
 	CoilContact* GetContact_2();
@@ -215,23 +232,31 @@ public:
 	void SetState(bool state);
 	void DrawCoil();
 	void setLeftContactPos(sf::Vector2f point);
+
+	void setGroupToCheck(RelayContactsGroup* group);
 };
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //									Relay Contact Group
 
+
 class RelayContactsGroup : public WidgetsBase
 {
 	Relay* self_relay = nullptr;
 	RelayContact m_Contacts[3];
+	bool IsUsedOnThisFrame = false;
+
 public:
+
 	RelayContactsGroup(sf::Vector2f n11_pos, Relay* relay, bool invert_x = false, bool invert_y = false);
 	void ManageSpriteState();
 	Relay* GetSelfRelay();
 	void SendSignalThroughItself(RelayContact* sender, bool signal);
 	void Draw();
 	RelayContact* getContact(RelayContactName_e name);
+	bool IsUsed();
+	void Reset();
 };
 
 
@@ -240,6 +265,7 @@ public:
 //									Relay
 
 
+// mostly abstract thing
 class Relay
 {
 	const char* name;
@@ -247,17 +273,24 @@ class Relay
 	RelayState_e m_CurrentState = n11_n13;
 
 public:
+
 	void UpdateState();
 	Relay(const char* name);
 	RelayCoil* GetCoil();
 	RelayState_e GetRelayState();
+
 };
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//									Scheme
+// 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
 class SchemeSegments
 {
 protected:
+
 	using PathsSegmentsMapType = std::map<std::string, PathSegment*>;
 	using ContactGroupsMapType = std::map<ContactsGroupName_e, RelayContactsGroup*>;
 
@@ -273,6 +306,7 @@ public:
 	void ResetSegments();
 	void DrawSegments();
 	void SendSignalFromEntry();
+
 };
 
 
