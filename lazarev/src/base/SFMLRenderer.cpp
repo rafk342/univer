@@ -36,8 +36,8 @@ void SFMLRenderer::Init()
 	sf::ContextSettings settings;
 	settings.antialiasingLevel = 8;
 	
-	m_Window = std::make_unique<sf::RenderWindow>(sf::VideoMode(1920, 1080), "m_Window", sf::Style::Default, settings);
-	m_Window->setFramerateLimit(120);
+	m_Window = std::make_unique<sf::RenderWindow>(sf::VideoMode(1920, 1080), "m_Wnd", sf::Style::Default, settings);
+	m_Window->setFramerateLimit(frameLimit);
 	
 	m_view.setSize(sf::Vector2f(m_Window->getSize()));
 	m_view.setCenter(sf::Vector2f(m_Window->getSize()) / 2.f);
@@ -51,10 +51,10 @@ void SFMLRenderer::Init()
 
 void SFMLRenderer::OnRender()
 {
-	//ImageButton m_btn("F:\\source\\sfml_test_app\\sfml_test_app\\resources\\buttons.png");
-	//m_btn.SetPosition({ 25, 40 });
-	//m_btn.SetInactiveImageRectSprite({ 6,3,54,50 });
-	//m_btn.SetActiveImageRectSprite({ 262,3,54,50 });
+	ImageButton m_btn("F:\\source\\sfml_test_app\\sfml_test_app\\resources\\buttons.png");
+	m_btn.SetPosition({ 25, 40 });
+	m_btn.SetInactiveImageRectSprite({ 6,3,54,50 });
+	m_btn.SetActiveImageRectSprite({ 262,3,54,50 });
 
 	Scheme m_scheme;
 
@@ -77,18 +77,23 @@ void SFMLRenderer::OnRender()
 		if (sf::Mouse::isButtonPressed(sf::Mouse::Middle))
 			m_view.move(-(delta_mouse));
 
-		//if (m_btn)
-		//	std::println("fps : {}", m_fps);
-		
-		m_scheme.DrawScheme();
+		if (m_btn)
+			std::println("fps : {}", m_fps);
 		
 		handleEvents();
+	
+		m_scheme.DrawScheme();
 
 		m_Window->setView(m_view);
 		m_Window->clear(sf::Color(200, 200, 200));
-		RenderRequests::DrawAll();
-		m_Window->display();
 
+	
+		RenderRequests::DrawAll();
+		
+		//auto start = std::chrono::high_resolution_clock::now();
+		m_Window->display();
+	
+		//std::println("{:.10f}", std::chrono::duration_cast<std::chrono::duration<double>>(std::chrono::high_resolution_clock::now() - start).count());
 
 		prev_mouse_pos = curr_mouse_pos;
 		prevTime = currTime;

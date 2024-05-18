@@ -19,7 +19,7 @@ class SFMLRenderer
     sf::View    m_view;
     sf::Font    m_font;
     sf::Event   m_event{};
-    char        pad[4]{};
+    unsigned    frameLimit = 200;
     sf::Clock   m_Clock;
     float       m_frameTime = 0;
     float       m_fps = 0;

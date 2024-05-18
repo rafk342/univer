@@ -27,10 +27,11 @@ Relay r_4Str("4Str");
 Relay r_2Str("2Str");
 Relay r_ChPZ("ChPZ");
 
+std::array m_RelaysArray = { &r_ChGS, &r_ChBS, &r_ChIP, &r_Ch1M, &r_Ch2M, &r_ChDP, &r_24SP, &r_1P, &r_2P, &r_4P, &r_4Str, &r_2Str, &r_ChPZ };
 
 void ResetCoils()
 {
-	for (auto& relay : { &r_ChGS, &r_ChBS, &r_ChIP, &r_Ch1M, &r_Ch2M, &r_ChDP, &r_24SP, &r_1P, &r_2P, &r_4P, &r_4Str, &r_2Str, &r_ChPZ })
+	for (auto relay : m_RelaysArray)
 	{
 		relay->GetCoil()->ResetCoil();
 	}
@@ -70,8 +71,8 @@ void Contact::SendSignal_ToDestinationContacts(bool signal)
 	}
 }
 
-void			Contact::PushContactAsDestination(Contact* contact) { if (this != contact) { destinations.push_back(contact); } }
-ContactType_e	Contact::GetContactType() { return m_ContactType; }
+void			Contact::PushContactAsDestination(Contact* contact)		{ if (this != contact) destinations.push_back(contact); }
+ContactType_e	Contact::GetContactType()								{ return m_ContactType; }
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -186,10 +187,10 @@ void PathSegment::SendSignalThroughItself(PathSegmentContact* sender, bool signa
 }
 
 
-bool				PathSegment::isActive() { return isActiveOnThisFrame; }
-const std::string	PathSegment::getName() { return m_name; }
-PathSegmentContact* PathSegment::GetContact_1() { return &m_Contacts[0]; }
-PathSegmentContact* PathSegment::GetContact_2() { return &m_Contacts[1]; }
+bool					PathSegment::isActive()				{ return isActiveOnThisFrame; }
+const std::string		PathSegment::getName()				{ return m_name; }
+PathSegmentContact*		PathSegment::GetContact_1()			{ return &m_Contacts[0]; }
+PathSegmentContact*		PathSegment::GetContact_2()			{ return &m_Contacts[1]; }
 
 
 
@@ -211,6 +212,7 @@ RelayCoil::RelayCoil()
 	m_sprite.setTextureRect({0,0,73,73});
 }
 
+
 void RelayCoil::SendSignalThroughItself(CoilContact* sender, bool signal)
 {
 	isActiveOnThisFrame = true;
@@ -227,16 +229,15 @@ void RelayCoil::SendSignalThroughItself(CoilContact* sender, bool signal)
 
 }
 
+
 void RelayCoil::ResetCoil()
 {
 	wasActiveOnPrevFrame = isActiveOnThisFrame;
 
-	if (groupToCheck)
+	if (groupToCheck)	// I couldn't come up with a better solution
 	{
 		if (groupToCheck->IsUsed())
-		{
 			return;
-		}
 	}
 
 	isActiveOnThisFrame = false;
@@ -244,12 +245,12 @@ void RelayCoil::ResetCoil()
 }
 
 
-bool			RelayCoil::isActive() { return isActiveOnThisFrame; }
-void			RelayCoil::SetState(bool state) { isActiveOnThisFrame = state; }
-CoilContact*	RelayCoil::GetContact_1() { return &m_Contacts[0]; }
-CoilContact*	RelayCoil::GetContact_2() { return &m_Contacts[1]; }
-void			RelayCoil::setGroupToCheck(RelayContactsGroup* group) { groupToCheck = group; }
-void			RelayCoil::DrawCoil() { RenderRequests::getWindow()->draw(m_sprite); }
+bool			RelayCoil::isActive()									{ return isActiveOnThisFrame; }
+void			RelayCoil::SetState(bool state)							{ isActiveOnThisFrame = state; }
+CoilContact*	RelayCoil::GetContact_1()								{ return &m_Contacts[0]; }
+CoilContact*	RelayCoil::GetContact_2()								{ return &m_Contacts[1]; }
+void			RelayCoil::setGroupToCheck(RelayContactsGroup* group)	{ groupToCheck = group; }
+void			RelayCoil::DrawCoil()									{ RenderRequests::getWindow()->draw(m_sprite); }
 
 void RelayCoil::setLeftContactPos(sf::Vector2f point)
 {
@@ -263,6 +264,7 @@ void RelayCoil::setLeftContactPos(sf::Vector2f point)
 //									Relay Contact Group									
 // 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 
 
 RelayContactsGroup::RelayContactsGroup(sf::Vector2f n11_pos, Relay* relay, bool invert_x, bool invert_y)
@@ -290,7 +292,6 @@ RelayContactsGroup::RelayContactsGroup(sf::Vector2f n11_pos, Relay* relay, bool 
 }
 
 
-
 void RelayContactsGroup::ManageSpriteState()
 {
 	auto state = self_relay->GetRelayState();
@@ -308,13 +309,13 @@ void RelayContactsGroup::ManageSpriteState()
 
 void RelayContactsGroup::SendSignalThroughItself(RelayContact* sender, bool signal)
 {
-	IsUsedOnThisFrame = true;
-
 	auto relay_state = self_relay->GetRelayState();
 	auto sender_name = sender->getContactName();
 	
 	if ((relay_state == n11_n12 && sender_name == N13) || (relay_state == n11_n13 && sender_name == N12))
 		return;
+
+	IsUsedOnThisFrame = true;
 #if m_debug
 	std::cout << "relay contact group | state : " << relay_state << " | sender : " << sender_name << std::endl;
 #endif
@@ -332,18 +333,17 @@ void RelayContactsGroup::SendSignalThroughItself(RelayContact* sender, bool sign
 }
 
 
-
 void RelayContactsGroup::Draw()
 {
 	ManageSpriteState();
 	RenderRequests::getWindow()->draw(m_sprite);
 }
 
-RelayContact*	RelayContactsGroup::getContact(RelayContactName_e name) { return &m_Contacts[name]; }
-Relay*			RelayContactsGroup::GetSelfRelay() { return self_relay; }
 
-void			RelayContactsGroup::Reset() { IsUsedOnThisFrame = false; }
-bool			RelayContactsGroup::IsUsed() { return IsUsedOnThisFrame; }
+RelayContact*	RelayContactsGroup::getContact(RelayContactName_e name)		{ return &m_Contacts[name]; }
+Relay*			RelayContactsGroup::GetSelfRelay()							{ return self_relay; }
+void			RelayContactsGroup::Reset()									{ IsUsedOnThisFrame = false; }
+bool			RelayContactsGroup::IsUsed()								{ return IsUsedOnThisFrame; }
 
 
 
@@ -375,7 +375,8 @@ RelayState_e Relay::GetRelayState()
 	return m_CurrentState;
 }
 
-RelayCoil* Relay::GetCoil() { return &m_Coil; }
+
+RelayCoil*		Relay::GetCoil()		{ return &m_Coil; }
 
 
 
@@ -405,7 +406,7 @@ void SchemeOverlay::DrawOverlay()
 SchemeSegments::SchemeSegments()
 {
 	std::filesystem::directory_iterator it("F:\\source\\lazarev\\lazarev\\assets\\SchemeSegments2");
-	m_PathSegments.reserve(20);
+	m_PathSegments.reserve(50);
 
 	for (auto& file_entry : it)
 	{
@@ -417,25 +418,86 @@ SchemeSegments::SchemeSegments()
 
 		if (m_PathSegments.back()->getName() == "s2_1_1")
 			s2_entry_segment = m_PathSegments.back();
+
+		if (m_PathSegments.back()->getName() == "s1_1_1_entry")
+			s1_entry_segment = m_PathSegments.back();
 	}
 
 #define make_group(name, ...) {name, new RelayContactsGroup(__VA_ARGS__)} 
-#define AttachContactAsDestination(contact1, contact2) contact1->PushContactAsDestination(contact2)
+#define AttachContactAsDestination(from, to) from->PushContactAsDestination(to)
 
 	m_ContactGroupsMap =
 	{
+		//Scheme 1
+		make_group(s1_c_CHGS_1,	{255,805},	&r_ChGS),
+		make_group(s1_c_CHBS_1,	{447,805},	&r_ChBS),
+		make_group(s1_c_CHIP_1,	{262,968},	&r_ChIP),
+		make_group(s1_c_CHIP_2,	{996,1195}, &r_ChIP),
+		make_group(s1_c_CH1M_1,	{1210,1300},&r_Ch1M, true),
+		make_group(s1_c_CH2M_1,	{1084,546},	&r_Ch2M),
+		make_group(s1_c_CHPZ_1,	{1210,1420},&r_ChPZ, true),
+		make_group(s1_c_CHDP_1,	{1260,1060},&r_ChDP, true),
+		make_group(s1_c_2_4_SP,	{1070,1070},&r_24SP, true),
+		make_group(s1_c_2PK_1,	{787,935},	&r_2Str),
+		make_group(s1_c_2PK_2,	{787,793},	&r_2Str),
+		make_group(s1_c_2MK,	{785,670},	&r_2Str),
+		make_group(s1_c_4PK,	{998,797},	&r_4Str),
+		make_group(s1_c_4MK,	{997,934},	&r_4Str),
+		make_group(s1_c_1P,		{1189,665}, &r_1P),
+		make_group(s1_c_2P,		{1189,785}, &r_2P),
+		make_group(s1_c_4P,		{1190,930}, &r_4P),
+
+		//Scheme 2
 		make_group(s2_c_CHGS1, {419,1590}, &r_ChGS),
 		make_group(s2_c_CHBS1, {610,1648}, &r_ChBS),
 		make_group(s2_c_CH2M,  {950,1715}, &r_Ch2M),
 		make_group(s2_c_CHPZ,  {950,1883}, &r_ChPZ),
 	};
 
+
+#define PathContact1(name) m_PathSegmentsMap.at(name)->GetContact_1()
+#define PathContact2(name) m_PathSegmentsMap.at(name)->GetContact_2()
+
+#define GroupContact(name, contact_name) m_ContactGroupsMap.at(name)->getContact(contact_name)
+
+	//Scheme 2
+	
+		//
+		//  Purpose is to connect some Contact2 from the one path to Contact1 from another path
+		// 
+		//  #G - Group
+		//  #P - Path
+		//  #C - Coil
+		// 
+		//			#P										#G/#C											#P
+		//  ( PATH NAME (Contact 1/2) ) @@@ ( Through something (can be group or coil or nothing) ) @@@ ( PATH NAME (Contact 1/2) )
+		//
+		//	Examples: 
+		//
+		//	From s2_2_1 Through s2_c_CHBS1 To s2_3_1:
+		// 
+		//	#P * s2_2_1 * C2   @@@   #G * s2_c_CHBS1 * N11  #G * s2_c_CHBS1 * N13   @@@    #P * s2_3_1 * C1
+		// 
+		// 	AttachContactAsDestination(m_PathSegmentsMap.at("s2_2_1")->GetContact_2(),      m_ContactGroupsMap.at(s2_c_CHBS1)->getContact(N11));
+		//  AttachContactAsDestination(m_ContactGroupsMap.at(s2_c_CHBS1)->getContact(N13),  m_PathSegmentsMap.at("s2_3_1")->GetContact_1());
+		//	
+		//	From s2_3_1 To s2_3_2:
+		//	
+		//	#P * s2_3_1 * C2 @@@ @@@ #P * s2_3_2 * C1
+		//	
+		//	AttachContactAsDestination(m_PathSegmentsMap.at("s2_3_1")->GetContact_2(),		m_PathSegmentsMap.at("s2_3_2")->GetContact_1());
+		//	
+		//	
+
 	AttachContactAsDestination(s2_entry_segment->GetContact_2(),					m_ContactGroupsMap.at(s2_c_CHGS1)->getContact(N11));
 	AttachContactAsDestination(m_ContactGroupsMap.at(s2_c_CHGS1)->getContact(N13),	m_PathSegmentsMap.at("s2_2_1")->GetContact_1());
+	
 	AttachContactAsDestination(m_PathSegmentsMap.at("s2_2_1")->GetContact_2(),		m_ContactGroupsMap.at(s2_c_CHBS1)->getContact(N11));
 	AttachContactAsDestination(m_ContactGroupsMap.at(s2_c_CHBS1)->getContact(N13),	m_PathSegmentsMap.at("s2_3_1")->GetContact_1());
+	
 	AttachContactAsDestination(m_PathSegmentsMap.at("s2_3_1")->GetContact_2(),		m_PathSegmentsMap.at("s2_3_2")->GetContact_1());
 	AttachContactAsDestination(m_PathSegmentsMap.at("s2_3_1")->GetContact_2(),		m_PathSegmentsMap.at("s2_3_3")->GetContact_1());
+	
 	AttachContactAsDestination(m_PathSegmentsMap.at("s2_3_2")->GetContact_2(),		m_ContactGroupsMap.at(s2_c_CH2M)->getContact(N11));
 	AttachContactAsDestination(m_PathSegmentsMap.at("s2_3_3")->GetContact_2(),		m_ContactGroupsMap.at(s2_c_CHPZ)->getContact(N11));
 	AttachContactAsDestination(m_ContactGroupsMap.at(s2_c_CH2M)->getContact(N12),	m_PathSegmentsMap.at("s2_4_3")->GetContact_1());
@@ -447,7 +509,25 @@ SchemeSegments::SchemeSegments()
 
 	r_ChPZ.GetCoil()->setLeftContactPos({1310, 1692});
 	r_ChPZ.GetCoil()->setGroupToCheck(m_ContactGroupsMap.at(s2_c_CHPZ));
-}
+
+	//Scheme 1
+
+	AttachContactAsDestination(s1_entry_segment->GetContact_2(),	PathContact1("s1_1_3"));
+	AttachContactAsDestination(s1_entry_segment->GetContact_2(),	PathContact1("s1_1_2"));
+	
+	AttachContactAsDestination(PathContact2("s1_1_2"),				GroupContact(s1_c_CHGS_1, N11));
+	AttachContactAsDestination(GroupContact(s1_c_CHGS_1, N13),		PathContact1("s1_2"));
+	AttachContactAsDestination(PathContact2("s1_2"),				GroupContact(s1_c_CHBS_1, N11));
+	AttachContactAsDestination(GroupContact(s1_c_CHBS_1, N13),		PathContact1("s1_3_1"));
+
+	AttachContactAsDestination(PathContact2("s1_1_3"),				GroupContact(s1_c_CHIP_1, N11));
+	AttachContactAsDestination(GroupContact(s1_c_CHIP_1, N12),		PathContact1("s1_3_2"));
+		
+	AttachContactAsDestination(PathContact2("s1_3_1"),				PathContact1("s1_3_11"));
+	AttachContactAsDestination(PathContact2("s1_3_1"),				PathContact1("s1_3_9"));
+
+
+} 
 
 
 
@@ -462,11 +542,11 @@ SchemeSegments::~SchemeSegments()
 
 void SchemeSegments::ResetSegments()
 {
-	for (auto ptr : m_PathSegments)
-		ptr->ResetSegment();
+	for (auto path : m_PathSegments)
+		path->ResetSegment();
 	
-	for (auto [v1, v2] : m_ContactGroupsMap)
-		v2->Reset();
+	for (auto [name, group] : m_ContactGroupsMap)
+		group->Reset();
 }
 
 
@@ -492,7 +572,11 @@ void SchemeSegments::DrawSegments()
 		});
 }
 
-void SchemeSegments::SendSignalFromEntry() { s2_entry_segment->SendSignalThroughItself(s2_entry_segment->GetContact_1(), true); }
+void SchemeSegments::SendSignalFromEntry() 
+{
+	s2_entry_segment->SendSignalThroughItself(s2_entry_segment->GetContact_1(), true); 
+	s1_entry_segment->SendSignalThroughItself(s1_entry_segment->GetContact_1(), true);
+}
 
 
 
@@ -501,19 +585,26 @@ Scheme::Scheme()
 	
 }
 
+ImageButton chbs_btn("F:\\source\\sfml_test_app\\sfml_test_app\\resources\\buttons.png");
+ImageButton m_btn("F:\\source\\sfml_test_app\\sfml_test_app\\resources\\buttons.png");
+
 void Scheme::DrawScheme()
 {
-	r_ChPZ.GetCoil()->ResetCoil();
-	m_SchemeSegments.ResetSegments();
-
-
-
-	static ImageButton chbs_btn("F:\\source\\sfml_test_app\\sfml_test_app\\resources\\buttons.png");
-	static ImageButton m_btn("F:\\source\\sfml_test_app\\sfml_test_app\\resources\\buttons.png");
-
 	static bool init = false;
 	static bool coil_flag = false;
 	static bool coil_flag2 = true;
+
+	if (m_btn) {
+		coil_flag = !coil_flag;
+	}
+
+	if (chbs_btn)
+		coil_flag2 = !coil_flag2;
+
+
+	ResetCoils();
+	m_SchemeSegments.ResetSegments();
+
 
 	if (!init)
 	{
@@ -526,14 +617,6 @@ void Scheme::DrawScheme()
 		chbs_btn.SetActiveImageRectSprite({ 262,3,54,50 });
 	}
 	
-	if (m_btn) {
-		coil_flag = !coil_flag;
-	}
-
-	if (chbs_btn)
-	{
-		coil_flag2 = !coil_flag2;
-	}
 
 	r_Ch2M.GetCoil()->SetState(coil_flag);
 	r_ChBS.GetCoil()->SetState(coil_flag2);

@@ -194,9 +194,11 @@ class PathSegment : public WidgetsBase
 public:
 
 	PathSegment(const std::filesystem::path& m_path);
-	const std::string getName();
+
 	PathSegmentContact* GetContact_1();
 	PathSegmentContact* GetContact_2();
+	const std::string	getName();
+
 	void ResetSegment();
 	bool isActive();
 	void SendSignalThroughItself(PathSegmentContact* sender, bool signal);
@@ -224,8 +226,10 @@ class RelayCoil : public WidgetsBase
 public:
 
 	RelayCoil();
+	
 	CoilContact* GetContact_1();
 	CoilContact* GetContact_2();
+	
 	void SendSignalThroughItself(CoilContact* sender, bool signal);
 	void ResetCoil();
 	bool isActive();
@@ -243,20 +247,21 @@ public:
 
 class RelayContactsGroup : public WidgetsBase
 {
-	Relay* self_relay = nullptr;
-	RelayContact m_Contacts[3];
-	bool IsUsedOnThisFrame = false;
+	Relay*			self_relay = nullptr;
+	RelayContact	m_Contacts[3];
+	bool			IsUsedOnThisFrame = false;
 
 public:
 
 	RelayContactsGroup(sf::Vector2f n11_pos, Relay* relay, bool invert_x = false, bool invert_y = false);
-	void ManageSpriteState();
-	Relay* GetSelfRelay();
-	void SendSignalThroughItself(RelayContact* sender, bool signal);
-	void Draw();
-	RelayContact* getContact(RelayContactName_e name);
-	bool IsUsed();
-	void Reset();
+	
+	void			ManageSpriteState();
+	Relay*			GetSelfRelay();
+	void			SendSignalThroughItself(RelayContact* sender, bool signal);
+	void			Draw();
+	RelayContact*	getContact(RelayContactName_e name);
+	bool			IsUsed();
+	void			Reset();
 };
 
 
@@ -274,10 +279,11 @@ class Relay
 
 public:
 
-	void UpdateState();
 	Relay(const char* name);
-	RelayCoil* GetCoil();
-	RelayState_e GetRelayState();
+	
+	RelayCoil*		GetCoil();
+	RelayState_e	GetRelayState();
+	void			UpdateState();
 
 };
 
@@ -298,11 +304,13 @@ protected:
 	PathsSegmentsMapType		m_PathSegmentsMap;
 	ContactGroupsMapType		m_ContactGroupsMap;
 	PathSegment*				s2_entry_segment = nullptr;
+	PathSegment*				s1_entry_segment = nullptr;
 	
 public:
 
 	SchemeSegments();
 	~SchemeSegments();
+	
 	void ResetSegments();
 	void DrawSegments();
 	void SendSignalFromEntry();
