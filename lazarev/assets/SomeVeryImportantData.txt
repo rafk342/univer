@@ -1,37 +1,16 @@
-		//
-		//  Purpose is to connect some Contact2 from the one path to Contact1 from another path
-		// 
-		//  #G - Group
-		//  #P - Path
-		//  #C - Coil
-		// 
-		//			#P										#G/#C											#P
-		//  ( PATH NAME (Contact 1/2) ) @@@ ( Through something (can be group or coil or nothing) ) @@@ ( PATH NAME (Contact 1/2) )
-		//
-		//	Examples: 
-		//
-		//	From s2_2_1 Through s2_c_CHBS1 To s2_3_1:
-		// 
-		//	#P * s2_2_1 * C2   @@@   #G * s2_c_CHBS1 * N11  #G * s2_c_CHBS1 * N13   @@@    #P * s2_3_1 * C1
-		// 
-		// 	AttachContactAsDestination(m_PathSegmentsMap.at("s2_2_1")->GetContact_2(),      m_ContactGroupsMap.at(s2_c_CHBS1)->getContact(N11));
-		//  AttachContactAsDestination(m_ContactGroupsMap.at(s2_c_CHBS1)->getContact(N13),  m_PathSegmentsMap.at("s2_3_1")->GetContact_1());
-		//	
-		//	From s2_3_1 To s2_3_2:
-		//	
-		//	#P * s2_3_1 * C2 @@@ @@@ #P * s2_3_2 * C1
-		//	
-		//	AttachContactAsDestination(m_PathSegmentsMap.at("s2_3_1")->GetContact_2(),		m_PathSegmentsMap.at("s2_3_2")->GetContact_1());
-		//	
-		//	
-			s2_c_CHGS1,
-			s2_c_CHBS1,
-			s2_c_CH2M,
-			s2_c_CHPZ,
 
-		#P*s2_1_1*C2 @@@ #G*s2_c_CHGS1*N11 #G*s2_c_CHGS1*N13 @@@ #P*s2_2_1*C1
-		#P*s2_2_1*C2 @@@ #G*s2_c_CHBS1*N11 #G*s2_c_CHBS1*N13 @@@ #P*s2_3_1*C1
-		#P*s2_3_1*C2 @@@ @@@ #P*s2_3_3*C1
-		#P*s2_3_1*C2 @@@ @@@ #P*s2_3_2*C1
-		#P*s2_3_3*C2 @@@ #G*s2_c_CH2M*N11 #G*s2_c_CH2M*N12 @@@ #P*s2_4_3*C1
-		#P*s2_3_2*C2 @@@ #G*s2_c_CHPZ*N11 #G*s2_c_CHPZ*N12 @@@ #P*s2_4_1*C1
+		
+		
+		#P*s2_1_1*C2 @ #G*s2_c_CHGS1*N11 & #G*s2_c_CHGS1*N13 @ #P*s2_2_1*C1
+		#P*s2_2_1*C2 @ #G*s2_c_CHBS1*N11 & #G*s2_c_CHBS1*N13 @ #P*s2_3_1*C1
+		#P*s2_3_1*C2 @ 										 @ #P*s2_3_3*C1
+		#P*s2_3_1*C2 @ 										 @ #P*s2_3_2*C1
+		#P*s2_3_3*C2 @ #G*s2_c_CH2M*N11 & #G*s2_c_CH2M*N12 	 @ #P*s2_4_3*C1
+		#P*s2_3_2*C2 @ #G*s2_c_CHPZ*N11 & #G*s2_c_CHPZ*N12   @ #P*s2_4_1*C1
+		#P*s2_4_1*C2 @ 									     @ #P*s2_4_2*C1
+		#P*s2_4_3*C2 @ 									     @ #P*s2_4_2*C1
+		#P*s2_4_2*C2 @ #C*r_ChPZ*C1 & #C*r_ChPZ*C2 			 @ #P*s2_5_1*C1
+		
+		
+		
+		

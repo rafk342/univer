@@ -13,19 +13,19 @@ sf::Vector2f PathSegment::SegmentsGlobImageOffset(35, 380);
 // 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-Relay r_ChGS("ChGS");
-Relay r_ChBS("ChBS");
-Relay r_ChIP("Chip");
-Relay r_Ch1M("Ch1M");
-Relay r_Ch2M("Ch2M");
-Relay r_ChDP("ChDP");
-Relay r_24SP("24SP");
-Relay r_1P("1P");
-Relay r_2P("2P");
-Relay r_4P("3P");
-Relay r_4Str("4Str");
-Relay r_2Str("2Str");
-Relay r_ChPZ("ChPZ");
+Relay r_ChGS("r_ChGS");
+Relay r_ChBS("r_ChBS");
+Relay r_ChIP("r_ChIP");
+Relay r_Ch1M("r_Ch1M");
+Relay r_Ch2M("r_Ch2M");
+Relay r_ChDP("r_ChDP");
+Relay r_24SP("r_24SP");
+Relay r_1P("r_1P");
+Relay r_2P("r_2P");
+Relay r_4P("r_4P");
+Relay r_4Str("r_4Str");
+Relay r_2Str("r_2Str");
+Relay r_ChPZ("r_ChPZ");
 
 std::array m_RelaysArray = { &r_ChGS, &r_ChBS, &r_ChIP, &r_Ch1M, &r_Ch2M, &r_ChDP, &r_24SP, &r_1P, &r_2P, &r_4P, &r_4Str, &r_2Str, &r_ChPZ };
 
@@ -35,6 +35,16 @@ void ResetCoils()
 	{
 		relay->GetCoil()->ResetCoil();
 	}
+}
+
+Relay* FindRelayByName(const std::string& name)
+{
+	auto it = std::find_if(m_RelaysArray.begin(), m_RelaysArray.end(), [=](Relay* relay)
+		{
+			return (name == relay->GetName());
+		});
+
+	return it == m_RelaysArray.end() ? nullptr : (*it);
 }
 
 
@@ -368,6 +378,8 @@ void Relay::UpdateState()
 	}
 }
 
+const char* Relay::GetName() { return name;}
+
 
 RelayState_e Relay::GetRelayState()
 {
@@ -424,7 +436,7 @@ SchemeSegments::SchemeSegments()
 	}
 
 #define make_group(name, ...) {name, new RelayContactsGroup(__VA_ARGS__)} 
-#define AttachContactAsDestination(from, to) from->PushContactAsDestination(to)
+//#define AttachContactAsDestination(from, to) from->PushContactAsDestination(to)
 
 	m_ContactGroupsMap =
 	{
@@ -453,78 +465,257 @@ SchemeSegments::SchemeSegments()
 		make_group(s2_c_CH2M,  {950,1715}, &r_Ch2M),
 		make_group(s2_c_CHPZ,  {950,1883}, &r_ChPZ),
 	};
+	
+	std::map<std::string, ContactsGroupName_e> __StrContactGroupsMap__
+	{
+		{"s1_c_CHGS_1",s1_c_CHGS_1	},
+		{"s1_c_CHBS_1",s1_c_CHBS_1	},
+		{"s1_c_CHIP_1",s1_c_CHIP_1	},
+		{"s1_c_CHIP_2",s1_c_CHIP_2	},
+		{"s1_c_CH1M_1",s1_c_CH1M_1	},
+		{"s1_c_CH2M_1",s1_c_CH2M_1	},
+		{"s1_c_CHPZ_1",s1_c_CHPZ_1	},
+		{"s1_c_CHDP_1",s1_c_CHDP_1	},
+		{"s1_c_2_4_SP",s1_c_2_4_SP	},
+		{"s1_c_2PK_1",s1_c_2PK_1	},
+		{"s1_c_2PK_2",s1_c_2PK_2	},
+		{"s1_c_2MK",s1_c_2MK		},
+		{"s1_c_4PK",s1_c_4PK		},
+		{"s1_c_4MK",s1_c_4MK		},
+		{"s1_c_1P",s1_c_1P			},
+		{"s1_c_2P",s1_c_2P			},
+		{"s1_c_4P",s1_c_4P			},
+		{"s2_c_CHGS1",s2_c_CHGS1	},
+		{"s2_c_CHBS1",s2_c_CHBS1	},
+		{"s2_c_CH2M",s2_c_CH2M		},
+		{"s2_c_CHPZ",s2_c_CHPZ		},
+	};
+
+	std::map<std::string, RelayContactName_e> __StrRelayContactNamesMap__
+	{
+		{"N11",N11},
+		{"N12",N12},
+		{"N13",N13},
+	};
+
+	//
+	//  Purpose is to connect some Contact from the one path to the Contact from another path
+	// 
+	//  #G - Group
+	//  #P - Path
+	//  #C - Coil
+	// 
+	//			#P										#G/#C											#P
+	//  ( PATH NAME (Contact 1/2) ) @ ( Through something (can be group or coil or nothing) ) @ ( PATH NAME (Contact 1/2) )
+	//
+	//	Examples: 
+	//
+	//	From s2_2_1 Through s2_c_CHBS1 To s2_3_1:
+	// 
+	//	#P * s2_2_1 * C2   @   #G * s2_c_CHBS1 * N11   &   #G * s2_c_CHBS1 * N13   @    #P * s2_3_1 * C1
+	// 
+	// 	AttachContactAsDestination(m_PathSegmentsMap.at("s2_2_1")->GetContact_2(),      m_ContactGroupsMap.at(s2_c_CHBS1)->getContact(N11));
+	//  AttachContactAsDestination(m_ContactGroupsMap.at(s2_c_CHBS1)->getContact(N13),  m_PathSegmentsMap.at("s2_3_1")->GetContact_1());
+	//	
+	//	From s2_3_1 To s2_3_2:
+	//	
+	//	#P * s2_3_1 * C2 @  @ #P * s2_3_2 * C1
+	//					  ^
+	//				  nothing here
+	// 
+	//	AttachContactAsDestination(m_PathSegmentsMap.at("s2_3_1")->GetContact_2(),		m_PathSegmentsMap.at("s2_3_2")->GetContact_1());
+	//	
+	//	
 
 
-#define PathContact1(name) m_PathSegmentsMap.at(name)->GetContact_1()
-#define PathContact2(name) m_PathSegmentsMap.at(name)->GetContact_2()
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//									file parser 
+//
 
-#define GroupContact(name, contact_name) m_ContactGroupsMap.at(name)->getContact(contact_name)
+	std::ifstream input("F:\\source\\lazarev\\lazarev\\assets\\SomeVeryImportantData.txt");
+	SM_ASSERT(input.is_open(), "SchemeSegments::SchemeSegments() -> Unable to open some important data ");
+	
+	std::string line;
+	line.reserve(100);
 
+	while (std::getline(input, line))
+	{
+		if (line.find("//") != -1)
+			continue;
+
+		line = helpers::strip_string(line);
+
+		if (line.empty())
+			continue;
+
+		std::array<std::string, 3> elements_array;
+		for (auto [index, elem] : std::views::enumerate(helpers::split_string(line, "@")))
+		{
+			if (index == 3)
+				break;
+			elements_array[index] = std::move(helpers::strip_string(elem));
+		}
+
+		auto& [Path1_Contact2, WayThrough, Path2_Contact1] = elements_array;
+
+		SM_ASSERT(Path1_Contact2.size() != 0, "SchemeSegments::SchemeSegments() -> Path1_Contact2 string len == 0");
+		SM_ASSERT(Path2_Contact1.size() != 0, "SchemeSegments::SchemeSegments() -> Path2_Contact1 string len == 0");
+
+		auto Path1_Contact_elems = helpers::split_string(Path1_Contact2, "* ");
+		auto Path2_Contact_elems = helpers::split_string(Path2_Contact1, "* ");
+		SM_ASSERT(Path1_Contact_elems.size() == 3 && Path2_Contact_elems.size() == 3, "SchemeSegments::SchemeSegments()");
+		
+		std::string& path1_name			= Path1_Contact_elems[1];
+		std::string& path1_contact_name = Path1_Contact_elems[2];
+			
+		std::string& path2_name			= Path2_Contact_elems[1];
+		std::string& path2_contact_name = Path2_Contact_elems[2];
+
+
+		if (!WayThrough.empty())
+		{
+			for (auto [index, contact_str]: std::views::enumerate(helpers::split_string(WayThrough, "&")))
+			{
+				auto contact_str_elems = helpers::split_string(helpers::strip_string(contact_str), "*");
+				SM_ASSERT(contact_str_elems.size() == 3, "SchemeSegments::SchemeSegments() contact_str_elems size != 3");
+
+				char		 group_or_coil  = contact_str_elems[0][1];
+				std::string& GroupOrRelay	= contact_str_elems[1];
+				std::string& ContactType	= contact_str_elems[2];
+
+				if (index == 0)
+				{
+					PathSegmentContact* contact_path1 = nullptr;
+
+					if (path1_contact_name == "C2")
+						contact_path1 = m_PathSegmentsMap.at(path1_name)->GetContact_2();
+
+					if (path1_contact_name == "C1")
+						contact_path1 = m_PathSegmentsMap.at(path1_name)->GetContact_1();
+
+					if (group_or_coil == 'G' && contact_path1)
+					{
+						contact_path1->PushContactAsDestination(m_ContactGroupsMap.at(__StrContactGroupsMap__.at(GroupOrRelay))
+							->getContact(__StrRelayContactNamesMap__.at(ContactType)));
+					}
+					if (group_or_coil == 'C' && contact_path1)
+					{
+						Relay* relay = FindRelayByName(GroupOrRelay);
+						if (relay)
+						{
+							if (ContactType == "C1")
+								contact_path1->PushContactAsDestination(relay->GetCoil()->GetContact_1());
+							if (ContactType == "C2")
+								contact_path1->PushContactAsDestination(relay->GetCoil()->GetContact_2());
+						}
+					}
+				}
+
+				if (index == 1)
+				{
+					PathSegmentContact* dest_contact = nullptr;
+
+					if (path2_contact_name == "C1")
+						dest_contact = m_PathSegmentsMap.at(path2_name)->GetContact_1();
+					if (path2_contact_name == "C2")
+						dest_contact = m_PathSegmentsMap.at(path2_name)->GetContact_2();
+					
+					if (dest_contact)
+					{
+						if (group_or_coil == 'G')
+						{
+
+							m_ContactGroupsMap.at(__StrContactGroupsMap__.at(GroupOrRelay))
+								->getContact(__StrRelayContactNamesMap__.at(ContactType))
+									->PushContactAsDestination(dest_contact);
+						}
+
+						if (group_or_coil == 'C')
+						{
+							Relay* relay = FindRelayByName(GroupOrRelay);
+							if (relay)
+							{
+								if (ContactType == "C1")
+									relay->GetCoil()->GetContact_1()->PushContactAsDestination(dest_contact);
+								
+								if (ContactType == "C2")
+									relay->GetCoil()->GetContact_2()->PushContactAsDestination(dest_contact);
+							}
+
+						}
+					}
+				}
+			}
+		}
+		else
+		{
+			PathSegmentContact* contact1 = nullptr;
+
+			if (path1_contact_name == "C1")
+				contact1 = m_PathSegmentsMap.at(path1_name)->GetContact_1();
+			if (path1_contact_name == "C2")
+				contact1 = m_PathSegmentsMap.at(path1_name)->GetContact_2();
+
+			PathSegmentContact* contact2 = nullptr;
+
+			if (path2_contact_name == "C1")
+				contact2 = m_PathSegmentsMap.at(path2_name)->GetContact_1();
+			if (path2_contact_name == "C2")
+				contact2 = m_PathSegmentsMap.at(path2_name)->GetContact_2();
+
+			if (contact1 && contact2)
+				contact1->PushContactAsDestination(contact2);
+		}
+
+	}
+
+	r_ChPZ.GetCoil()->setLeftContactPos({ 1310, 1692 });
+	r_ChPZ.GetCoil()->setGroupToCheck(m_ContactGroupsMap.at(s2_c_CHPZ));
+
+//
+//#define PathContact1(name) m_PathSegmentsMap.at(name)->GetContact_1()
+//#define PathContact2(name) m_PathSegmentsMap.at(name)->GetContact_2()
+//
+//#define GroupContact(name, contact_name) m_ContactGroupsMap.at(name)->getContact(contact_name)
+//
 	//Scheme 2
 	
-		//
-		//  Purpose is to connect some Contact2 from the one path to Contact1 from another path
-		// 
-		//  #G - Group
-		//  #P - Path
-		//  #C - Coil
-		// 
-		//			#P										#G/#C											#P
-		//  ( PATH NAME (Contact 1/2) ) @@@ ( Through something (can be group or coil or nothing) ) @@@ ( PATH NAME (Contact 1/2) )
-		//
-		//	Examples: 
-		//
-		//	From s2_2_1 Through s2_c_CHBS1 To s2_3_1:
-		// 
-		//	#P * s2_2_1 * C2   @@@   #G * s2_c_CHBS1 * N11  #G * s2_c_CHBS1 * N13   @@@    #P * s2_3_1 * C1
-		// 
-		// 	AttachContactAsDestination(m_PathSegmentsMap.at("s2_2_1")->GetContact_2(),      m_ContactGroupsMap.at(s2_c_CHBS1)->getContact(N11));
-		//  AttachContactAsDestination(m_ContactGroupsMap.at(s2_c_CHBS1)->getContact(N13),  m_PathSegmentsMap.at("s2_3_1")->GetContact_1());
-		//	
-		//	From s2_3_1 To s2_3_2:
-		//	
-		//	#P * s2_3_1 * C2 @@@ @@@ #P * s2_3_2 * C1
-		//	
-		//	AttachContactAsDestination(m_PathSegmentsMap.at("s2_3_1")->GetContact_2(),		m_PathSegmentsMap.at("s2_3_2")->GetContact_1());
-		//	
-		//	
+		
 
-	AttachContactAsDestination(s2_entry_segment->GetContact_2(),					m_ContactGroupsMap.at(s2_c_CHGS1)->getContact(N11));
-	AttachContactAsDestination(m_ContactGroupsMap.at(s2_c_CHGS1)->getContact(N13),	m_PathSegmentsMap.at("s2_2_1")->GetContact_1());
-	
-	AttachContactAsDestination(m_PathSegmentsMap.at("s2_2_1")->GetContact_2(),		m_ContactGroupsMap.at(s2_c_CHBS1)->getContact(N11));
-	AttachContactAsDestination(m_ContactGroupsMap.at(s2_c_CHBS1)->getContact(N13),	m_PathSegmentsMap.at("s2_3_1")->GetContact_1());
-	
-	AttachContactAsDestination(m_PathSegmentsMap.at("s2_3_1")->GetContact_2(),		m_PathSegmentsMap.at("s2_3_2")->GetContact_1());
-	AttachContactAsDestination(m_PathSegmentsMap.at("s2_3_1")->GetContact_2(),		m_PathSegmentsMap.at("s2_3_3")->GetContact_1());
-	
-	AttachContactAsDestination(m_PathSegmentsMap.at("s2_3_2")->GetContact_2(),		m_ContactGroupsMap.at(s2_c_CH2M)->getContact(N11));
-	AttachContactAsDestination(m_PathSegmentsMap.at("s2_3_3")->GetContact_2(),		m_ContactGroupsMap.at(s2_c_CHPZ)->getContact(N11));
-	AttachContactAsDestination(m_ContactGroupsMap.at(s2_c_CH2M)->getContact(N12),	m_PathSegmentsMap.at("s2_4_3")->GetContact_1());
-	AttachContactAsDestination(m_ContactGroupsMap.at(s2_c_CHPZ)->getContact(N12),	m_PathSegmentsMap.at("s2_4_1")->GetContact_1());
-	AttachContactAsDestination(m_PathSegmentsMap.at("s2_4_3")->GetContact_2(),		m_PathSegmentsMap.at("s2_4_2")->GetContact_1());
-	AttachContactAsDestination(m_PathSegmentsMap.at("s2_4_1")->GetContact_2(),		m_PathSegmentsMap.at("s2_4_2")->GetContact_1());
-	AttachContactAsDestination(m_PathSegmentsMap.at("s2_4_2")->GetContact_2(),		r_ChPZ.GetCoil()->GetContact_1());
-	AttachContactAsDestination(r_ChPZ.GetCoil()->GetContact_2(),					m_PathSegmentsMap.at("s2_5_1")->GetContact_1());
 
-	r_ChPZ.GetCoil()->setLeftContactPos({1310, 1692});
-	r_ChPZ.GetCoil()->setGroupToCheck(m_ContactGroupsMap.at(s2_c_CHPZ));
+	//AttachContactAsDestination(s2_entry_segment->GetContact_2(),					m_ContactGroupsMap.at(s2_c_CHGS1)->getContact(N11));
+	//AttachContactAsDestination(m_ContactGroupsMap.at(s2_c_CHGS1)->getContact(N13),	m_PathSegmentsMap.at("s2_2_1")->GetContact_1());
+	//
+	//AttachContactAsDestination(m_PathSegmentsMap.at("s2_2_1")->GetContact_2(),		m_ContactGroupsMap.at(s2_c_CHBS1)->getContact(N11));
+	//AttachContactAsDestination(m_ContactGroupsMap.at(s2_c_CHBS1)->getContact(N13),	m_PathSegmentsMap.at("s2_3_1")->GetContact_1());
+	//
+	//AttachContactAsDestination(m_PathSegmentsMap.at("s2_3_1")->GetContact_2(),		m_PathSegmentsMap.at("s2_3_2")->GetContact_1());
+	//AttachContactAsDestination(m_PathSegmentsMap.at("s2_3_1")->GetContact_2(),		m_PathSegmentsMap.at("s2_3_3")->GetContact_1());
+	//
+	//AttachContactAsDestination(m_PathSegmentsMap.at("s2_3_2")->GetContact_2(),		m_ContactGroupsMap.at(s2_c_CH2M)->getContact(N11));
+	//AttachContactAsDestination(m_PathSegmentsMap.at("s2_3_3")->GetContact_2(),		m_ContactGroupsMap.at(s2_c_CHPZ)->getContact(N11));
+	//AttachContactAsDestination(m_ContactGroupsMap.at(s2_c_CH2M)->getContact(N12),	m_PathSegmentsMap.at("s2_4_3")->GetContact_1());
+	//AttachContactAsDestination(m_ContactGroupsMap.at(s2_c_CHPZ)->getContact(N12),	m_PathSegmentsMap.at("s2_4_1")->GetContact_1());
+	//AttachContactAsDestination(m_PathSegmentsMap.at("s2_4_3")->GetContact_2(),		m_PathSegmentsMap.at("s2_4_2")->GetContact_1());
+	//AttachContactAsDestination(m_PathSegmentsMap.at("s2_4_1")->GetContact_2(),		m_PathSegmentsMap.at("s2_4_2")->GetContact_1());
+	//AttachContactAsDestination(m_PathSegmentsMap.at("s2_4_2")->GetContact_2(),		r_ChPZ.GetCoil()->GetContact_1());
+	//AttachContactAsDestination(r_ChPZ.GetCoil()->GetContact_2(),					m_PathSegmentsMap.at("s2_5_1")->GetContact_1());
 
 	//Scheme 1
 
-	AttachContactAsDestination(s1_entry_segment->GetContact_2(),	PathContact1("s1_1_3"));
-	AttachContactAsDestination(s1_entry_segment->GetContact_2(),	PathContact1("s1_1_2"));
-	
-	AttachContactAsDestination(PathContact2("s1_1_2"),				GroupContact(s1_c_CHGS_1, N11));
-	AttachContactAsDestination(GroupContact(s1_c_CHGS_1, N13),		PathContact1("s1_2"));
-	AttachContactAsDestination(PathContact2("s1_2"),				GroupContact(s1_c_CHBS_1, N11));
-	AttachContactAsDestination(GroupContact(s1_c_CHBS_1, N13),		PathContact1("s1_3_1"));
+	//AttachContactAsDestination(s1_entry_segment->GetContact_2(),	PathContact1("s1_1_3"));
+	//AttachContactAsDestination(s1_entry_segment->GetContact_2(),	PathContact1("s1_1_2"));
+	//
+	//AttachContactAsDestination(PathContact2("s1_1_2"),				GroupContact(s1_c_CHGS_1, N11));
+	//AttachContactAsDestination(GroupContact(s1_c_CHGS_1, N13),		PathContact1("s1_2"));
+	//AttachContactAsDestination(PathContact2("s1_2"),				GroupContact(s1_c_CHBS_1, N11));
+	//AttachContactAsDestination(GroupContact(s1_c_CHBS_1, N13),		PathContact1("s1_3_1"));
 
-	AttachContactAsDestination(PathContact2("s1_1_3"),				GroupContact(s1_c_CHIP_1, N11));
-	AttachContactAsDestination(GroupContact(s1_c_CHIP_1, N12),		PathContact1("s1_3_2"));
-		
-	AttachContactAsDestination(PathContact2("s1_3_1"),				PathContact1("s1_3_11"));
-	AttachContactAsDestination(PathContact2("s1_3_1"),				PathContact1("s1_3_9"));
+	//AttachContactAsDestination(PathContact2("s1_1_3"),				GroupContact(s1_c_CHIP_1, N11));
+	//AttachContactAsDestination(GroupContact(s1_c_CHIP_1, N12),		PathContact1("s1_3_2"));
+	//	
+	//AttachContactAsDestination(PathContact2("s1_3_1"),				PathContact1("s1_3_11"));
+	//AttachContactAsDestination(PathContact2("s1_3_1"),				PathContact1("s1_3_9"));
 
 
 } 

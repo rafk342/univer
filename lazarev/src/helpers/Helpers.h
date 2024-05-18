@@ -34,7 +34,7 @@ namespace helpers
     }
 
     std::vector<std::string>    split_string    (const std::string& input, const std::string& delimiters, uint16_t expected_vec_size = 16);
-    std::string                 strip_str(const std::string& str);
+    std::string                 strip_string    (const std::string& str);
 
 
 }

@@ -1,7 +1,10 @@
 #pragma once
+#include <iostream>
 #include <vector>
 #include <array>
 #include <filesystem>
+#include <ranges>
+#include <fstream>
 
 #include "Widgets/ImageButton.h"
 #include "base/WidgetsBase.h"
@@ -270,7 +273,7 @@ public:
 //									Relay
 
 
-// mostly abstract thing
+// it's mostly an abstract thing
 class Relay
 {
 	const char* name;
@@ -284,7 +287,7 @@ public:
 	RelayCoil*		GetCoil();
 	RelayState_e	GetRelayState();
 	void			UpdateState();
-
+	const char*		GetName();
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

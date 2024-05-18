@@ -20,7 +20,7 @@ std::vector<std::string> helpers::split_string(const std::string& input, const s
     return elements;
 }
 
-std::string helpers::strip_str(const std::string& str)
+std::string helpers::strip_string(const std::string& str)
 {
     if (str.empty())
         return str;
