@@ -8,6 +8,8 @@ class WidgetsBase;
 
 class ImageButton : public WidgetsBase
 {
+protected:
+
     sf::IntRect InactiveSpriteRect{};
     sf::IntRect ActiveSpriteRect{};
     sf::Color hovered_color = { 212, 212, 212 };
@@ -26,5 +28,23 @@ public:
     void SetUnhoveredTint(sf::Color col);
 
     operator bool() { return ButtonBehavior(); }
+};
+
+
+
+class TwoStatesButton : public ImageButton
+{
+    bool current_state = false;
+
+    bool ButtonBehavior();
+
+public:
+    using ImageButton::ImageButton;
+
+    operator bool() { return ButtonBehavior(); }
+    bool getState() { return current_state; }
+    void SetTrueStateSpriteRect(const sf::IntRect& rect);
+    void SetFalseStateSpriteRect(const sf::IntRect& rect);
+
 };
 

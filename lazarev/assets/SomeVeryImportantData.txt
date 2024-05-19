@@ -1,16 +1,136 @@
+	
+	
 
-		
-		
-		#P*s2_1_1*C2 @ #G*s2_c_CHGS1*N11 & #G*s2_c_CHGS1*N13 @ #P*s2_2_1*C1
-		#P*s2_2_1*C2 @ #G*s2_c_CHBS1*N11 & #G*s2_c_CHBS1*N13 @ #P*s2_3_1*C1
-		#P*s2_3_1*C2 @ 										 @ #P*s2_3_3*C1
-		#P*s2_3_1*C2 @ 										 @ #P*s2_3_2*C1
-		#P*s2_3_3*C2 @ #G*s2_c_CH2M*N11 & #G*s2_c_CH2M*N12 	 @ #P*s2_4_3*C1
-		#P*s2_3_2*C2 @ #G*s2_c_CHPZ*N11 & #G*s2_c_CHPZ*N12   @ #P*s2_4_1*C1
-		#P*s2_4_1*C2 @ 									     @ #P*s2_4_2*C1
-		#P*s2_4_3*C2 @ 									     @ #P*s2_4_2*C1
-		#P*s2_4_2*C2 @ #C*r_ChPZ*C1 & #C*r_ChPZ*C2 			 @ #P*s2_5_1*C1
-		
-		
-		
-		
+// Relay r_ChGS("r_ChGS");
+// Relay r_ChBS("r_ChBS");
+// Relay r_ChIP("r_ChIP");
+// Relay r_Ch1M("r_Ch1M");
+// Relay r_Ch2M("r_Ch2M");
+// Relay r_ChDP("r_ChDP");
+// Relay r_24SP("r_24SP");
+// Relay r_ChPZ("r_ChPZ");
+
+// Relay r_1P("r_1P");
+// Relay r_2P("r_2P");
+// Relay r_4P("r_4P");
+
+// Relay r_2MK("r_2MK");
+// Relay r_2PK("r_2PK");
+
+// Relay r_4PK("r_4PK");
+// Relay r_4MK("r_4MK");
+
+	
+
+	#P*s2_1_1*C2 @ #G*s2_c_CHGS1*N11 & #G*s2_c_CHGS1*N13 @ #P*s2_2_1*C1
+	#P*s2_2_1*C2 @ #G*s2_c_CHBS1*N11 & #G*s2_c_CHBS1*N13 @ #P*s2_3_1*C1
+	#P*s2_3_1*C2 @ 										 @ #P*s2_3_3*C1
+	#P*s2_3_1*C2 @ 										 @ #P*s2_3_2*C1
+	#P*s2_3_3*C2 @ #G*s2_c_CH2M*N11 & #G*s2_c_CH2M*N12 	 @ #P*s2_4_3*C1
+	#P*s2_3_2*C2 @ #G*s2_c_CHPZ*N11 & #G*s2_c_CHPZ*N12   @ #P*s2_4_1*C1
+	#P*s2_4_1*C2 @ 									     @ #P*s2_4_2*C1
+	#P*s2_4_3*C2 @ 									     @ #P*s2_4_2*C1
+	#P*s2_4_2*C2 @ #C*r_ChPZ*C1 & #C*r_ChPZ*C2 			 @ #P*s2_5_1*C1
+	
+	
+//	enum ContactsGroupName_e
+//	{
+//		s1_c_CHGS_1,
+//		s1_c_CHBS_1,
+//		s1_c_CHIP_1,
+//		s1_c_CHIP_2,
+//		s1_c_CH1M_1,
+//		s1_c_CH2M_1,
+//		s1_c_CHPZ_1,
+//		s1_c_CHDP_1,
+//		s1_c_2_4_SP,
+//		s1_c_2PK_1,
+//		s1_c_2PK_2,
+//		s1_c_2MK,
+//		s1_c_4PK,
+//		s1_c_4MK,
+//		s1_c_1P,
+//		s1_c_2P,
+//		s1_c_4P,
+//	
+//		s2_c_CHGS1,
+//		s2_c_CHBS1,
+//		s2_c_CH2M,
+//		s2_c_CHPZ,
+//	};
+//
+
+	#P*s1_1_1_entry*C2 @   @ #P*s1_1_2*C1
+	#P*s1_1_1_entry*C2 @   @ #P*s1_1_3*C1
+
+	#P*s1_1_2*C2 @ #G*s1_c_CHGS_1*N11 & #G*s1_c_CHGS_1*N13 @ #P*s1_2*C1	
+	#P*s1_1_3*C2 @ #G*s1_c_CHIP_1*N11 & #G*s1_c_CHIP_1*N12 @ #P*s1_3_2*C1
+	#P*s1_2*C2   @ #G*s1_c_CHBS_1*N11 & #G*s1_c_CHBS_1*N13 @ #P*s1_3_1*C1
+	
+	#P*s1_3_2*C2 @ @ #P*s1_3_9*C1
+	#P*s1_3_2*C2 @ @ #P*s1_3_10*C1
+	
+	#P*s1_3_1*C2 @ @ #P*s1_3_9*C1
+	#P*s1_3_1*C2 @ @ #P*s1_3_11*C1
+	
+	#P*s1_3_9*C2 @ @ #P*s1_3_10*C1
+	#P*s1_3_9*C2 @ @ #P*s1_3_11*C1
+	
+	#P*s1_3_11*C2 @ @ #P*s1_3_3*C1
+	#P*s1_3_11*C2 @ @ #P*s1_3_4*C1
+	
+	#P*s1_3_3*C2  @ #G*s1_c_CH2M_1*N11 & #G*s1_c_CH2M_1*N12 @ #P*s1_14_6*C1 
+	#P*s1_14_6*C2 @ @ #P*s1_14_8*C1
+	#P*s1_14_8*C2 @ #C*r_Ch2M*C1      & #C*r_Ch2M*C2 @ #P*s1_15_2*C1
+	
+	#P*s1_15_2*C2 @ @ #P*s1_15_6_output*C1
+	
+	#P*s1_3_10*C2 @ @ #P*s1_3_5*C1
+	#P*s1_3_10*C2 @ @ #P*s1_3_6*C1
+	
+	#P*s1_3_6*C2 @ @ #P*s1_3_7*C1
+	#P*s1_3_6*C2 @ @ #P*s1_3_8*C1
+	
+	#P*s1_3_5*C2 @ #G*s1_c_CHIP_2*N11 & #G*s1_c_CHIP_2*N12 @ #P*s1_4*C1
+	#P*s1_4*C2	 @ #G*s1_c_CHDP_1*N13 & #G*s1_c_CHDP_1*N11 @ #P*s1_5*C2
+	#P*s1_5*C1	 @ @ #P*s1_5_3*C1
+	
+	#P*s1_3_7*C2 @ #G*s1_c_CH1M_1*N12 & #G*s1_c_CH1M_1*N11 @ #P*s1_5_1*C1 
+	#P*s1_5_1*C2 @ @ #P*s1_5_3*C1
+	
+	#P*s1_5_3*C2 @ #C*r_Ch1M*C1       & #C*r_Ch1M*C2 @ #P*s1_15_1*C1
+	#P*s1_5_1*C2 @ @ #P*s1_5*C1
+	
+	#P*s1_5*C2 @ #G*s1_c_CHDP_1*N11   & #G*s1_c_CHDP_1*N12 @ #P*s1_11*C1
+	
+	#P*s1_3_8*C2 @ #G*s1_c_CHPZ_1*N12 & #G*s1_c_CHPZ_1*N11 @ #P*s1_5_2*C1
+	#P*s1_5_2*C2 @ @ #P*s1_5_3*C1
+	#P*s1_5_2*C2 @ @ #P*s1_5*C1
+	
+	#P*s1_11*C2  @ #G*s1_c_2_4_SP*N11 & #G*s1_c_2_4_SP*N12 @ #P*s1_6_1*C1
+	#P*s1_6_1*C2 @ #G*s1_c_2PK_1*N11  & #G*s1_c_2PK_1*N12  @ #P*s1_9*C1
+	
+	#P*s1_6_1*C2 @ @ #P*s1_6_3*C1
+	#P*s1_6_1*C2 @ @ #P*s1_6_2*C1
+	#P*s1_6_3*C2 @ @ #P*s1_6_4*C1
+	#P*s1_6_3*C2 @ @ #P*s1_6*C1
+
+	#P*s1_15_1*C2 @ @ #P*s1_15_6_output*C1
+	
+	#P*s1_6_2*C2 @ #G*s1_c_2PK_1*N11 & #G*s1_c_2PK_1*N12 @ #P*s1_9*C1
+	#P*s1_9*C2   @ #G*s1_c_4MK*N11   & #G*s1_c_4MK*N12   @ #P*s1_10*C1
+	#P*s1_10*C2  @ #G*s1_c_4P*N11    & #G*s1_c_4P*N13    @ #P*s1_14_2*C1
+	
+	#P*s1_6_4*C2 @ #G*s1_c_2PK_2*N11 & #G*s1_c_2PK_2*N12 @ #P*s1_8*C1
+	#P*s1_8*C2   @ #G*s1_c_4PK*N11 & #G*s1_c_4PK*N12 @ #P*s1_12*C1
+	#P*s1_12*C2  @ #G*s1_c_2P*N11 & #G*s1_c_2P*N13 @ #P*s1_14_3*C1
+	
+	#P*s1_14_3*C2 @ @ #P*s1_14_4*C1
+	#P*s1_14_2*C2 @ @ #P*s1_14_4*C1
+	
+	#P*s1_6*C2 @ #G*s1_c_2MK*N11 & #G*s1_c_2MK*N12 @ #P*s1_7*C1
+	#P*s1_7*C2 @ #G*s1_c_1P*N11 & #G*s1_c_1P*N13 @ #P*s1_14_1*C1
+	#P*s1_14_1*C2 @ @ #P*s1_14_5*C1
+	#P*s1_14_5*C2 @ @ #P*s1_14_8*C1
+	
+	#P*s1_14_4*C2 @ @ #P*s1_14_5*C1

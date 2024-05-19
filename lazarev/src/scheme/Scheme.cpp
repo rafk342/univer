@@ -20,14 +20,36 @@ Relay r_Ch1M("r_Ch1M");
 Relay r_Ch2M("r_Ch2M");
 Relay r_ChDP("r_ChDP");
 Relay r_24SP("r_24SP");
+Relay r_ChPZ("r_ChPZ");
+
 Relay r_1P("r_1P");
 Relay r_2P("r_2P");
 Relay r_4P("r_4P");
-Relay r_4Str("r_4Str");
-Relay r_2Str("r_2Str");
-Relay r_ChPZ("r_ChPZ");
 
-std::array m_RelaysArray = { &r_ChGS, &r_ChBS, &r_ChIP, &r_Ch1M, &r_Ch2M, &r_ChDP, &r_24SP, &r_1P, &r_2P, &r_4P, &r_4Str, &r_2Str, &r_ChPZ };
+Relay r_2MK("r_2MK");
+Relay r_2PK("r_2PK");
+
+Relay r_4PK("r_4PK");
+Relay r_4MK("r_4MK");
+
+std::array m_RelaysArray = 
+{ 
+	&r_ChGS,
+	&r_ChBS,
+	&r_ChIP,
+	&r_Ch1M,
+	&r_Ch2M,
+	&r_ChDP,
+	&r_24SP,
+	&r_ChPZ,
+	&r_1P,
+	&r_2P,
+	&r_4P,
+	&r_2MK,
+	&r_2PK,
+	&r_4PK,
+	&r_4MK,
+};
 
 void ResetCoils()
 {
@@ -39,7 +61,7 @@ void ResetCoils()
 
 Relay* FindRelayByName(const std::string& name)
 {
-	auto it = std::find_if(m_RelaysArray.begin(), m_RelaysArray.end(), [=](Relay* relay)
+	auto it = std::ranges::find_if(m_RelaysArray, [=](Relay* relay)
 		{
 			return (name == relay->GetName());
 		});
@@ -58,14 +80,16 @@ Relay* FindRelayByName(const std::string& name)
 
 Contact::Contact(ContactType_e Type) : m_ContactType(Type) {}
 
+
 void Contact::SendSignal_ToDestinationContacts(bool signal)
 {
+	if (destinations.empty())
+		return;
+
 	for (auto dest : destinations)
 	{
 		auto type = dest->GetContactType();
-#if m_debug
-		std::cout << "sending to : " << type << " ptr : " << (void*)dest << std::endl;
-#endif
+
 		if (type == T_NONE)
 		{
 			static_cast<PathSegmentContact*>(dest)->SendSignalToSegment(signal);
@@ -81,6 +105,7 @@ void Contact::SendSignal_ToDestinationContacts(bool signal)
 	}
 }
 
+
 void			Contact::PushContactAsDestination(Contact* contact)		{ if (this != contact) destinations.push_back(contact); }
 ContactType_e	Contact::GetContactType()								{ return m_ContactType; }
 
@@ -94,19 +119,12 @@ PathSegmentContact::PathSegmentContact() : Contact(T_NONE) {}
 PathSegmentContact::PathSegmentContact(PathSegment* segment) : Contact(T_NONE) {}
 void PathSegmentContact::ConnectToSegment(PathSegment* segment) { self_segment = segment; }
 
+
 void PathSegmentContact::SendSignalToSegment(bool signal)
 {
-#if m_debug
-	std::cout << "In____ PathSegmentContact::SendSignalToSegment " << std::endl;
-#endif
 	if (self_segment) 
-	{
-#if m_debug
-		std::cout << " PathSegmentContact::SendSignalToSegment " << std::endl;
-#endif
 		self_segment->SendSignalThroughItself(this, signal);
-	}
-		
+
 }
 
 
@@ -118,7 +136,8 @@ void PathSegmentContact::SendSignalToSegment(bool signal)
 RelayContact::RelayContact(RelayContactName_e name, RelayContactsGroup* selfGroup)
 	: Contact(T_RELAY)
 	, m_name(name) 
-	, selfContactGroup(selfGroup) { }
+	, selfContactGroup(selfGroup)
+{ }
 
 
 RelayContactName_e RelayContact::getContactName() { return m_name; }
@@ -177,21 +196,18 @@ void PathSegment::ResetSegment()
 
 void PathSegment::SendSignalThroughItself(PathSegmentContact* sender, bool signal)
 {
+	/*if (isActiveOnThisFrame)
+		return;*/
+
 	isActiveOnThisFrame = true;
-	m_sprite.setColor(sf::Color(230, 0, 0, 255));
+	m_sprite.setColor(sf::Color(200, 0, 0, 255));
 
 	if (sender == &m_Contacts[0])
 	{
-#if m_debug
-		std::cout << m_name << " Path segment [1] -> sending to dest" << std::endl;
-#endif
 		m_Contacts[1].SendSignal_ToDestinationContacts(signal);
 	}
 	else if (sender == &m_Contacts[1])
 	{
-#if m_debug
-		std::cout << m_name << " Path segment [0] -> sending to dest" << std::endl;
-#endif
 		m_Contacts[0].SendSignal_ToDestinationContacts(signal);
 	}
 }
@@ -244,9 +260,9 @@ void RelayCoil::ResetCoil()
 {
 	wasActiveOnPrevFrame = isActiveOnThisFrame;
 
-	if (groupToCheck)	// I couldn't come up with a better solution
+	if (groupToCheck)
 	{
-		if (groupToCheck->IsUsed())
+		if (groupToCheck->IsUsed()) 
 			return;
 	}
 
@@ -255,18 +271,27 @@ void RelayCoil::ResetCoil()
 }
 
 
-bool			RelayCoil::isActive()									{ return isActiveOnThisFrame; }
-void			RelayCoil::SetState(bool state)							{ isActiveOnThisFrame = state; }
-CoilContact*	RelayCoil::GetContact_1()								{ return &m_Contacts[0]; }
-CoilContact*	RelayCoil::GetContact_2()								{ return &m_Contacts[1]; }
-void			RelayCoil::setGroupToCheck(RelayContactsGroup* group)	{ groupToCheck = group; }
-void			RelayCoil::DrawCoil()									{ RenderRequests::getWindow()->draw(m_sprite); }
-
 void RelayCoil::setLeftContactPos(sf::Vector2f point)
 {
 	point.y -= 73/2;
 	SetPosition(point);
 }
+
+
+void RelayCoil::DrawCoil()
+{
+	if (!isActiveOnThisFrame)
+		m_sprite.setColor(sf::Color(0, 0, 0, 255));
+
+	RenderRequests::getWindow()->draw(m_sprite);
+}
+
+
+bool			RelayCoil::isActive()				{ return isActiveOnThisFrame; }
+void			RelayCoil::SetState(bool state)		{ isActiveOnThisFrame = state; }
+CoilContact*	RelayCoil::GetContact_1()			{ return &m_Contacts[0]; }
+CoilContact*	RelayCoil::GetContact_2()			{ return &m_Contacts[1]; }
+void			RelayCoil::setGroupToCheck(RelayContactsGroup* group) { groupToCheck = group; }
 
 
 
@@ -321,14 +346,11 @@ void RelayContactsGroup::SendSignalThroughItself(RelayContact* sender, bool sign
 {
 	auto relay_state = self_relay->GetRelayState();
 	auto sender_name = sender->getContactName();
+	IsUsedOnThisFrame = true;
 	
 	if ((relay_state == n11_n12 && sender_name == N13) || (relay_state == n11_n13 && sender_name == N12))
 		return;
 
-	IsUsedOnThisFrame = true;
-#if m_debug
-	std::cout << "relay contact group | state : " << relay_state << " | sender : " << sender_name << std::endl;
-#endif
 	if (relay_state == n11_n12 && sender_name == N11)
 		m_Contacts[N12].SendSignal_ToDestinationContacts(signal);
 	
@@ -378,8 +400,6 @@ void Relay::UpdateState()
 	}
 }
 
-const char* Relay::GetName() { return name;}
-
 
 RelayState_e Relay::GetRelayState()
 {
@@ -389,7 +409,7 @@ RelayState_e Relay::GetRelayState()
 
 
 RelayCoil*		Relay::GetCoil()		{ return &m_Coil; }
-
+const char*		Relay::GetName()		{ return name; }
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -436,7 +456,7 @@ SchemeSegments::SchemeSegments()
 	}
 
 #define make_group(name, ...) {name, new RelayContactsGroup(__VA_ARGS__)} 
-//#define AttachContactAsDestination(from, to) from->PushContactAsDestination(to)
+
 
 	m_ContactGroupsMap =
 	{
@@ -450,11 +470,13 @@ SchemeSegments::SchemeSegments()
 		make_group(s1_c_CHPZ_1,	{1210,1420},&r_ChPZ, true),
 		make_group(s1_c_CHDP_1,	{1260,1060},&r_ChDP, true),
 		make_group(s1_c_2_4_SP,	{1070,1070},&r_24SP, true),
-		make_group(s1_c_2PK_1,	{787,935},	&r_2Str),
-		make_group(s1_c_2PK_2,	{787,793},	&r_2Str),
-		make_group(s1_c_2MK,	{785,670},	&r_2Str),
-		make_group(s1_c_4PK,	{998,797},	&r_4Str),
-		make_group(s1_c_4MK,	{997,934},	&r_4Str),
+
+		make_group(s1_c_2PK_1,	{787,935},	&r_2PK),
+		make_group(s1_c_2PK_2,	{787,793},	&r_2PK),
+		make_group(s1_c_2MK,	{785,670},	&r_2MK),
+		make_group(s1_c_4PK,	{998,797},	&r_4PK),
+		make_group(s1_c_4MK,	{997,934},	&r_4MK),
+
 		make_group(s1_c_1P,		{1189,665}, &r_1P),
 		make_group(s1_c_2P,		{1189,785}, &r_2P),
 		make_group(s1_c_4P,		{1190,930}, &r_4P),
@@ -497,7 +519,9 @@ SchemeSegments::SchemeSegments()
 		{"N12",N12},
 		{"N13",N13},
 	};
-
+	
+	
+	//#define AttachContactAsDestination(from, to) from->PushContactAsDestination(to)
 	//
 	//  Purpose is to connect some Contact from the one path to the Contact from another path
 	// 
@@ -527,11 +551,10 @@ SchemeSegments::SchemeSegments()
 	//	
 	//	
 
-
+	
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //									file parser 
 //
-
 	std::ifstream input("F:\\source\\lazarev\\lazarev\\assets\\SomeVeryImportantData.txt");
 	SM_ASSERT(input.is_open(), "SchemeSegments::SchemeSegments() -> Unable to open some important data ");
 	
@@ -549,11 +572,9 @@ SchemeSegments::SchemeSegments()
 			continue;
 
 		std::array<std::string, 3> elements_array;
-		for (auto [index, elem] : std::views::enumerate(helpers::split_string(line, "@")))
+		for (auto [index, elem] : std::views::enumerate(helpers::split_string(line, "@") | std::views::take(3)))
 		{
-			if (index == 3)
-				break;
-			elements_array[index] = std::move(helpers::strip_string(elem));
+			elements_array[index] = helpers::strip_string(elem);
 		}
 
 		auto& [Path1_Contact2, WayThrough, Path2_Contact1] = elements_array;
@@ -563,7 +584,7 @@ SchemeSegments::SchemeSegments()
 
 		auto Path1_Contact_elems = helpers::split_string(Path1_Contact2, "* ");
 		auto Path2_Contact_elems = helpers::split_string(Path2_Contact1, "* ");
-		SM_ASSERT(Path1_Contact_elems.size() == 3 && Path2_Contact_elems.size() == 3, "SchemeSegments::SchemeSegments()");
+		SM_ASSERT(Path1_Contact_elems.size() == 3 && Path2_Contact_elems.size() == 3, std::format("SchemeSegments::SchemeSegments()) {} ", Path1_Contact2));
 		
 		std::string& path1_name			= Path1_Contact_elems[1];
 		std::string& path1_contact_name = Path1_Contact_elems[2];
@@ -574,14 +595,14 @@ SchemeSegments::SchemeSegments()
 
 		if (!WayThrough.empty())
 		{
-			for (auto [index, contact_str]: std::views::enumerate(helpers::split_string(WayThrough, "&")))
+			for (auto [index, contact_str] : std::views::enumerate(helpers::split_string(WayThrough, "&")))
 			{
 				auto contact_str_elems = helpers::split_string(helpers::strip_string(contact_str), "*");
 				SM_ASSERT(contact_str_elems.size() == 3, "SchemeSegments::SchemeSegments() contact_str_elems size != 3");
 
-				char		 group_or_coil  = contact_str_elems[0][1];
-				std::string& GroupOrRelay	= contact_str_elems[1];
-				std::string& ContactType	= contact_str_elems[2];
+				char		 group_or_coil_type		= contact_str_elems[0][1];
+				std::string& group_or_relay_name	= contact_str_elems[1];
+				std::string& contact_type			= contact_str_elems[2];
 
 				if (index == 0)
 				{
@@ -593,19 +614,19 @@ SchemeSegments::SchemeSegments()
 					if (path1_contact_name == "C1")
 						contact_path1 = m_PathSegmentsMap.at(path1_name)->GetContact_1();
 
-					if (group_or_coil == 'G' && contact_path1)
+					if (group_or_coil_type == 'G' && contact_path1)
 					{
-						contact_path1->PushContactAsDestination(m_ContactGroupsMap.at(__StrContactGroupsMap__.at(GroupOrRelay))
-							->getContact(__StrRelayContactNamesMap__.at(ContactType)));
+						contact_path1->PushContactAsDestination(m_ContactGroupsMap.at(__StrContactGroupsMap__.at(group_or_relay_name))
+							->getContact(__StrRelayContactNamesMap__.at(contact_type)));
 					}
-					if (group_or_coil == 'C' && contact_path1)
+					if (group_or_coil_type == 'C' && contact_path1)
 					{
-						Relay* relay = FindRelayByName(GroupOrRelay);
+						Relay* relay = FindRelayByName(group_or_relay_name);
 						if (relay)
 						{
-							if (ContactType == "C1")
+							if (contact_type == "C1")
 								contact_path1->PushContactAsDestination(relay->GetCoil()->GetContact_1());
-							if (ContactType == "C2")
+							if (contact_type == "C2")
 								contact_path1->PushContactAsDestination(relay->GetCoil()->GetContact_2());
 						}
 					}
@@ -622,26 +643,25 @@ SchemeSegments::SchemeSegments()
 					
 					if (dest_contact)
 					{
-						if (group_or_coil == 'G')
+						if (group_or_coil_type == 'G')
 						{
 
-							m_ContactGroupsMap.at(__StrContactGroupsMap__.at(GroupOrRelay))
-								->getContact(__StrRelayContactNamesMap__.at(ContactType))
+							m_ContactGroupsMap.at(__StrContactGroupsMap__.at(group_or_relay_name))
+								->getContact(__StrRelayContactNamesMap__.at(contact_type))
 									->PushContactAsDestination(dest_contact);
 						}
 
-						if (group_or_coil == 'C')
+						if (group_or_coil_type == 'C')
 						{
-							Relay* relay = FindRelayByName(GroupOrRelay);
+							Relay* relay = FindRelayByName(group_or_relay_name);
 							if (relay)
 							{
-								if (ContactType == "C1")
+								if (contact_type == "C1")
 									relay->GetCoil()->GetContact_1()->PushContactAsDestination(dest_contact);
 								
-								if (ContactType == "C2")
+								if (contact_type == "C2")
 									relay->GetCoil()->GetContact_2()->PushContactAsDestination(dest_contact);
 							}
-
 						}
 					}
 				}
@@ -669,55 +689,13 @@ SchemeSegments::SchemeSegments()
 
 	}
 
+
 	r_ChPZ.GetCoil()->setLeftContactPos({ 1310, 1692 });
 	r_ChPZ.GetCoil()->setGroupToCheck(m_ContactGroupsMap.at(s2_c_CHPZ));
-
-//
-//#define PathContact1(name) m_PathSegmentsMap.at(name)->GetContact_1()
-//#define PathContact2(name) m_PathSegmentsMap.at(name)->GetContact_2()
-//
-//#define GroupContact(name, contact_name) m_ContactGroupsMap.at(name)->getContact(contact_name)
-//
-	//Scheme 2
-	
-		
-
-
-	//AttachContactAsDestination(s2_entry_segment->GetContact_2(),					m_ContactGroupsMap.at(s2_c_CHGS1)->getContact(N11));
-	//AttachContactAsDestination(m_ContactGroupsMap.at(s2_c_CHGS1)->getContact(N13),	m_PathSegmentsMap.at("s2_2_1")->GetContact_1());
-	//
-	//AttachContactAsDestination(m_PathSegmentsMap.at("s2_2_1")->GetContact_2(),		m_ContactGroupsMap.at(s2_c_CHBS1)->getContact(N11));
-	//AttachContactAsDestination(m_ContactGroupsMap.at(s2_c_CHBS1)->getContact(N13),	m_PathSegmentsMap.at("s2_3_1")->GetContact_1());
-	//
-	//AttachContactAsDestination(m_PathSegmentsMap.at("s2_3_1")->GetContact_2(),		m_PathSegmentsMap.at("s2_3_2")->GetContact_1());
-	//AttachContactAsDestination(m_PathSegmentsMap.at("s2_3_1")->GetContact_2(),		m_PathSegmentsMap.at("s2_3_3")->GetContact_1());
-	//
-	//AttachContactAsDestination(m_PathSegmentsMap.at("s2_3_2")->GetContact_2(),		m_ContactGroupsMap.at(s2_c_CH2M)->getContact(N11));
-	//AttachContactAsDestination(m_PathSegmentsMap.at("s2_3_3")->GetContact_2(),		m_ContactGroupsMap.at(s2_c_CHPZ)->getContact(N11));
-	//AttachContactAsDestination(m_ContactGroupsMap.at(s2_c_CH2M)->getContact(N12),	m_PathSegmentsMap.at("s2_4_3")->GetContact_1());
-	//AttachContactAsDestination(m_ContactGroupsMap.at(s2_c_CHPZ)->getContact(N12),	m_PathSegmentsMap.at("s2_4_1")->GetContact_1());
-	//AttachContactAsDestination(m_PathSegmentsMap.at("s2_4_3")->GetContact_2(),		m_PathSegmentsMap.at("s2_4_2")->GetContact_1());
-	//AttachContactAsDestination(m_PathSegmentsMap.at("s2_4_1")->GetContact_2(),		m_PathSegmentsMap.at("s2_4_2")->GetContact_1());
-	//AttachContactAsDestination(m_PathSegmentsMap.at("s2_4_2")->GetContact_2(),		r_ChPZ.GetCoil()->GetContact_1());
-	//AttachContactAsDestination(r_ChPZ.GetCoil()->GetContact_2(),					m_PathSegmentsMap.at("s2_5_1")->GetContact_1());
-
-	//Scheme 1
-
-	//AttachContactAsDestination(s1_entry_segment->GetContact_2(),	PathContact1("s1_1_3"));
-	//AttachContactAsDestination(s1_entry_segment->GetContact_2(),	PathContact1("s1_1_2"));
-	//
-	//AttachContactAsDestination(PathContact2("s1_1_2"),				GroupContact(s1_c_CHGS_1, N11));
-	//AttachContactAsDestination(GroupContact(s1_c_CHGS_1, N13),		PathContact1("s1_2"));
-	//AttachContactAsDestination(PathContact2("s1_2"),				GroupContact(s1_c_CHBS_1, N11));
-	//AttachContactAsDestination(GroupContact(s1_c_CHBS_1, N13),		PathContact1("s1_3_1"));
-
-	//AttachContactAsDestination(PathContact2("s1_1_3"),				GroupContact(s1_c_CHIP_1, N11));
-	//AttachContactAsDestination(GroupContact(s1_c_CHIP_1, N12),		PathContact1("s1_3_2"));
-	//	
-	//AttachContactAsDestination(PathContact2("s1_3_1"),				PathContact1("s1_3_11"));
-	//AttachContactAsDestination(PathContact2("s1_3_1"),				PathContact1("s1_3_9"));
-
-
+	r_Ch1M.GetCoil()->setLeftContactPos({1588, 1277});
+	r_Ch1M.GetCoil()->setGroupToCheck(m_ContactGroupsMap.at(s1_c_CH1M_1));
+	r_Ch2M.GetCoil()->setLeftContactPos({1589, 521});
+	r_Ch2M.GetCoil()->setGroupToCheck(m_ContactGroupsMap.at(s1_c_CH2M_1));
 } 
 
 
@@ -731,11 +709,16 @@ SchemeSegments::~SchemeSegments()
 		delete ptr;
 }
 
-void SchemeSegments::ResetSegments()
+
+void SchemeSegments::ResetPathSegments()
 {
 	for (auto path : m_PathSegments)
 		path->ResetSegment();
-	
+}
+
+
+void SchemeSegments::ResetConactGroups()
+{
 	for (auto [name, group] : m_ContactGroupsMap)
 		group->Reset();
 }
@@ -758,10 +741,12 @@ void SchemeSegments::DrawSegments()
 				group->GetSelfRelay()->UpdateState();
 				group->Draw();
 			}
-
+			r_Ch1M.GetCoil()->DrawCoil();
 			r_ChPZ.GetCoil()->DrawCoil();
+			r_Ch2M.GetCoil()->DrawCoil();
 		});
 }
+
 
 void SchemeSegments::SendSignalFromEntry() 
 {
@@ -770,53 +755,159 @@ void SchemeSegments::SendSignalFromEntry()
 }
 
 
-
-Scheme::Scheme() 
+Scheme::Scheme()
 {
-	
+
 }
 
 ImageButton chbs_btn("F:\\source\\sfml_test_app\\sfml_test_app\\resources\\buttons.png");
 ImageButton m_btn("F:\\source\\sfml_test_app\\sfml_test_app\\resources\\buttons.png");
+ImageButton m_btn2("F:\\source\\sfml_test_app\\sfml_test_app\\resources\\buttons.png");
+ImageButton m_btn3("F:\\source\\sfml_test_app\\sfml_test_app\\resources\\buttons.png");
+ImageButton m_btn4("F:\\source\\sfml_test_app\\sfml_test_app\\resources\\buttons.png");
+ImageButton m_btn5("F:\\source\\sfml_test_app\\sfml_test_app\\resources\\buttons.png");
+TwoStatesButton m_2StrBtn("F:\\source\\sfml_test_app\\sfml_test_app\\resources\\buttons.png");
+TwoStatesButton m_4StrBtn("F:\\source\\sfml_test_app\\sfml_test_app\\resources\\buttons.png");
+
+
+void Text_SetColPos(sf::Text& text, sf::Vector2f vec)
+{
+	text.setFillColor(sf::Color::Black);
+	text.setPosition(vec);
+}
+
+
 
 void Scheme::DrawScheme()
 {
 	static bool init = false;
 	static bool coil_flag = false;
 	static bool coil_flag2 = true;
+	static bool coil_flag3 = false;
+	static bool coil_flag4 = false;
+	static bool coil_flag5 = false;
+	static bool coil_flag6 = false;
 
-	if (m_btn) {
-		coil_flag = !coil_flag;
-	}
 
+	/*if (m_btn) 
+		coil_flag = !coil_flag;*/
+	
 	if (chbs_btn)
 		coil_flag2 = !coil_flag2;
 
+	if (m_btn2)
+		coil_flag3 = !coil_flag3;
+
+	if (m_btn3)
+		coil_flag4 = !coil_flag4;
+
+	if (m_btn4)
+		coil_flag5 = !coil_flag5;
+	
+	//if (m_btn5)
+	//	coil_flag6 = !coil_flag6;
+	
+	if (m_2StrBtn) {}
+	if (m_4StrBtn) {}
 
 	ResetCoils();
-	m_SchemeSegments.ResetSegments();
+	m_SchemeSegments.ResetPathSegments();
+	m_SchemeSegments.ResetConactGroups();
 
 
 	if (!init)
 	{
-		m_btn.SetPosition({ 280, 1200 });
+		m_btn.SetPosition({ 150, 1200 });
 		m_btn.SetInactiveImageRectSprite({ 6,3,54,50 });
 		m_btn.SetActiveImageRectSprite({ 262,3,54,50 });
 
-		chbs_btn.SetPosition({ 280, 1280 });
+		chbs_btn.SetPosition({ 150, 1280 });
 		chbs_btn.SetInactiveImageRectSprite({ 6,3,54,50 });
 		chbs_btn.SetActiveImageRectSprite({ 262,3,54,50 });
+
+		m_btn2.SetPosition({ 150, 1360 });
+		m_btn2.SetInactiveImageRectSprite({ 6,3,54,50 });
+		m_btn2.SetActiveImageRectSprite({ 262,3,54,50 });
+		
+		m_btn3.SetPosition({ 150, 1440 });
+		m_btn3.SetInactiveImageRectSprite({ 6,3,54,50 });
+		m_btn3.SetActiveImageRectSprite({ 262,3,54,50 });	
+		
+		m_btn4.SetPosition({ 150, 1520 });
+		m_btn4.SetInactiveImageRectSprite({ 6,3,54,50 });
+		m_btn4.SetActiveImageRectSprite({ 262,3,54,50 });
+		
+		m_btn5.SetPosition({ 150, 1600 });
+		m_btn5.SetInactiveImageRectSprite({ 6,3,54,50 });
+		m_btn5.SetActiveImageRectSprite({ 262,3,54,50 });	
+
+		m_4StrBtn.SetPosition({ 150, 1760 });
+		m_4StrBtn.SetFalseStateSpriteRect({ 6,67, 54,50 });
+		m_4StrBtn.SetTrueStateSpriteRect({6,131, 54,50});
+
+		m_2StrBtn.SetPosition({ 150, 1680 });
+		m_2StrBtn.SetFalseStateSpriteRect({ 6,67, 54,50 });
+		m_2StrBtn.SetTrueStateSpriteRect({ 6,131, 54,50 });
+
+		init = true;
 	}
 	
+	r_2PK.GetCoil()->SetState(!m_2StrBtn.getState());
+	r_2MK.GetCoil()->SetState(m_2StrBtn.getState());
+	r_4PK.GetCoil()->SetState(!m_4StrBtn.getState());
+	r_4MK.GetCoil()->SetState(m_4StrBtn.getState());
 
-	r_Ch2M.GetCoil()->SetState(coil_flag);
+
+	//r_Ch2M.GetCoil()->SetState(coil_flag);
 	r_ChBS.GetCoil()->SetState(coil_flag2);
+	r_ChIP.GetCoil()->SetState(coil_flag3);
+	r_ChDP.GetCoil()->SetState(coil_flag4);
+	r_24SP.GetCoil()->SetState(coil_flag5);
+
+	
+	//r_Ch1M.GetCoil()->SetState(coil_flag6);
 
 	m_SchemeSegments.SendSignalFromEntry();
+	
+	//static sf::Text m_text("CH2M", m_SFMLRenderer.get_font(), 35);
+	//Text_SetColPos(m_text, { 210, 1200 });
 
+	static sf::Text m_text1("CHBS", m_SFMLRenderer.get_font(), 35);
+	Text_SetColPos(m_text1, { 210, 1280 });
+		
+	static sf::Text m_text2("CHIP", m_SFMLRenderer.get_font(), 35);
+	Text_SetColPos(m_text2, { 210, 1360 });
+
+	static sf::Text m_text3("CHDP", m_SFMLRenderer.get_font(), 35);
+	Text_SetColPos(m_text3, { 210, 1440 });
+	
+	static sf::Text m_text4("2-4 SP", m_SFMLRenderer.get_font(), 35);
+	Text_SetColPos(m_text4, { 210, 1520 });	
+	
+	static sf::Text m_text5("CH1M", m_SFMLRenderer.get_font(), 35);
+	Text_SetColPos(m_text5, { 210, 1600 });
+
+	static sf::Text m_text6("Strelka2", m_SFMLRenderer.get_font(), 35);
+	Text_SetColPos(m_text6, { 210, 1680 });
+	
+	static sf::Text m_text7("Strelka4", m_SFMLRenderer.get_font(), 35);
+	Text_SetColPos(m_text7, { 210, 1760 });
 
 	m_SchemeSegments.DrawSegments();
 	m_Overlay.DrawOverlay();
+	
+	RenderRequests::InvokeWidgetUpdate([]
+		{
+			//RenderRequests::getWindow()->draw(m_text);
+			RenderRequests::getWindow()->draw(m_text1);
+			RenderRequests::getWindow()->draw(m_text2);
+			RenderRequests::getWindow()->draw(m_text3);
+			RenderRequests::getWindow()->draw(m_text4);
+			//RenderRequests::getWindow()->draw(m_text5);
+			RenderRequests::getWindow()->draw(m_text6);
+			RenderRequests::getWindow()->draw(m_text7);
+		});
+	
 
 #if m_debug
 	std::cout << "\n\n\n\n";

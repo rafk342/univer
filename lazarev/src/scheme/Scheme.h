@@ -38,12 +38,16 @@ extern Relay r_Ch1M;
 extern Relay r_Ch2M;
 extern Relay r_ChDP;
 extern Relay r_24SP;
+extern Relay r_ChPZ;
+
 extern Relay r_1P;
 extern Relay r_2P;
 extern Relay r_4P;
-extern Relay r_4Str;
-extern Relay r_2Str;
-extern Relay r_ChPZ;
+
+extern Relay r_2MK;
+extern Relay r_2PK;
+extern Relay r_4MK;
+extern Relay r_4PK;
 
 
 
@@ -84,11 +88,14 @@ enum ContactsGroupName_e
 	s1_c_CHPZ_1,
 	s1_c_CHDP_1,
 	s1_c_2_4_SP,
+	
 	s1_c_2PK_1,
 	s1_c_2PK_2,
 	s1_c_2MK,
+
 	s1_c_4PK,
 	s1_c_4MK,
+
 	s1_c_1P,
 	s1_c_2P,
 	s1_c_4P,
@@ -314,7 +321,8 @@ public:
 	SchemeSegments();
 	~SchemeSegments();
 	
-	void ResetSegments();
+	void ResetPathSegments();
+	void ResetConactGroups();
 	void DrawSegments();
 	void SendSignalFromEntry();
 
