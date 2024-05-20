@@ -1,4 +1,4 @@
-
+ï»¿
 #include "Widgets/ImageButton.h"
 #include "Scheme.h"
 
@@ -908,28 +908,28 @@ void Scheme::DrawScheme()
 	
 	//static sf::Text m_text("CH2M", m_SFMLRenderer.get_font(), 35);
 	
-	//static sf::Text m_text(L"×2Ì", m_SFMLRenderer.get_font(), 35);
+	//static sf::Text m_text(L"ï¿½2ï¿½", m_SFMLRenderer.get_font(), 35);
 	//Text_SetColPos(m_text, { 210, 1200 });
 
-	static sf::Text m_text1(L"×ÁÑ", m_SFMLRenderer.get_font(), 35);
+	static sf::Text m_text1(L"ï¿½ï¿½ï¿½", m_SFMLRenderer.get_font(), 35);
 	Text_SetColPos(m_text1, { 210, 1280 });
 
-	static sf::Text m_text2(L"×ÈÏ", m_SFMLRenderer.get_font(), 35);
+	static sf::Text m_text2(L"ï¿½ï¿½ï¿½", m_SFMLRenderer.get_font(), 35);
 	Text_SetColPos(m_text2, { 210, 1360 });
 
-	static sf::Text m_text3(L"×ÄÏ", m_SFMLRenderer.get_font(), 35);
+	static sf::Text m_text3(L"ï¿½ï¿½ï¿½", m_SFMLRenderer.get_font(), 35);
 	Text_SetColPos(m_text3, { 210, 1440 });
 	
-	static sf::Text m_text4(L"2-4 ÑÏ", m_SFMLRenderer.get_font(), 35);
+	static sf::Text m_text4(L"2-4 ï¿½ï¿½", m_SFMLRenderer.get_font(), 35);
 	Text_SetColPos(m_text4, { 210, 1520 });	
 	
-	static sf::Text m_text5(L"×1Ì", m_SFMLRenderer.get_font(), 35);
+	static sf::Text m_text5(L"ï¿½1ï¿½", m_SFMLRenderer.get_font(), 35);
 	Text_SetColPos(m_text5, { 210, 1600 });
 
-	static sf::Text m_text6(L"Ñòðåëêà 2", m_SFMLRenderer.get_font(), 35);
+	static sf::Text m_text6(L"ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ 2", m_SFMLRenderer.get_font(), 35);
 	Text_SetColPos(m_text6, { 210, 1680 });
 	
-	static sf::Text m_text7(L"Ñòðåëêà 4", m_SFMLRenderer.get_font(), 35);
+	static sf::Text m_text7(L"ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ 4", m_SFMLRenderer.get_font(), 35);
 	Text_SetColPos(m_text7, { 210, 1760 });
 
 	m_SchemeSegments.DrawSegments();
@@ -967,7 +967,8 @@ void Train::UpdateHeadAndTailPos()
 {
 	auto pos = m_sprite.getPosition();
 	auto texture_sz = m_texture.getSize();
-	m_HeadPos = { pos.x - texture_sz.x , pos.y - texture_sz.y / 2 };
+	m_TailPos = { pos.x, pos.y - texture_sz.y / 2 };
+	m_HeadPos = { pos.x + texture_sz.x, pos.y - texture_sz.y / 2 };
 }
 
 Train::Train()
@@ -989,8 +990,9 @@ void Train::SetPosition(const sf::Vector2f& pos)
 {
 	auto texture_sz = m_texture.getSize();
 //	m_HeadPos = { pos.x - texture_sz.x , pos.y - texture_sz.y / 2 };
-	m_HeadPos = { pos.x, pos.y - texture_sz.y / 2 };
-	m_sprite.setPosition(m_HeadPos);
+	m_TailPos = { pos.x, pos.y - texture_sz.y / 2 };
+	m_HeadPos = { pos.x + texture_sz.x, pos.y - texture_sz.y / 2 };
+	m_sprite.setPosition(m_TailPos);
 }
 
 
@@ -1004,30 +1006,32 @@ void Train::FollowTheMouse(TrainRoute* route)
 		return;
 
 	bool is_mouse_pressed_on_this_frame = sf::Mouse::isButtonPressed(sf::Mouse::Left);
-	static bool catched = false;
+	static bool cought = false;
 	static sf::Vector2f offset;
+	static sf::Vector2f headOffset;
 
 	
-	if (is_hovered() && is_mouse_pressed_on_this_frame && !catched)
+	if (is_hovered() && is_mouse_pressed_on_this_frame && !cought)
 	{
-		catched = true;
+		cought = true;
 		offset = m_sprite.getPosition() - m_SFMLRenderer.get_world_mouse_position();
-
+		headOffset = offset;
+		headOffset.x += m_texture.getSize().x;
 	}
-	else if (catched && is_mouse_pressed_on_this_frame)
+	else if (cought && is_mouse_pressed_on_this_frame)
 	{
-		sf::Vector2f targetHeadPos = route->GetTrainPos(m_HeadPos);
+		sf::Vector2f targetHeadPos = route->GetTrainPos(m_HeadPos, headOffset);
 		targetHeadPos.x += offset.x;
 
 
-		m_sprite.setPosition(targetHeadPos);
+		//m_sprite.setPosition(targetHeadPos);
 		SetPosition(targetHeadPos);
 		//UpdateHeadAndTailPos();
 
 	}
 	else if (!is_mouse_pressed_on_this_frame)
 	{
-		catched = false;
+		cought = false;
 	}
 }
 
@@ -1060,8 +1064,31 @@ void TrainRoute::SetLerpPoints(std::initializer_list<sf::Vector2f> il)
 	m_BasePoints = il;
 }
 
+std::pair<sf::Vector2f, sf::Vector2f> TrainRoute::GetTrainStation(sf::Vector2f pos) 
+{
+	std::pair<sf::Vector2f, sf::Vector2f> points;
+	bool found = false;
 
-sf::Vector2f TrainRoute::GetTrainPos(sf::Vector2f train_head)
+	for (size_t i = 0; i < m_BasePoints.size() - 1; ++i)
+	{
+		const sf::Vector2f& pointA = m_BasePoints[i];
+		const sf::Vector2f& pointB = m_BasePoints[i + 1];
+
+		if (pointB.x >= pos.x && pointA.x <= pos.x)
+		{
+			found = true;
+			points = { pointA, pointB };
+			break;
+		}
+	}
+
+	if (!found)
+		return{};
+	
+	return points;
+}
+
+sf::Vector2f TrainRoute::GetTrainPos(sf::Vector2f train_head, sf::Vector2f offset)
 {
 	auto mouse_pos = m_SFMLRenderer.get_world_mouse_position();
 
@@ -1071,25 +1098,13 @@ sf::Vector2f TrainRoute::GetTrainPos(sf::Vector2f train_head)
 	if (mouse_pos.x < 325)
 		mouse_pos.x = 325;
 
-	if (mouse_pos.x > 1742)
-		mouse_pos.x = 1742;
-
-	for (size_t i = 0; i < m_BasePoints.size() - 1; ++i) 
-	{
-		const sf::Vector2f& pointA = m_BasePoints[i];
-		const sf::Vector2f& pointB = m_BasePoints[i + 1];
-
-		if (pointA.x <= mouse_pos.x && pointB.x >= mouse_pos.x)
-		{
-			found = true;
-			points = { pointA, pointB };
-		}
+	if (mouse_pos.x + offset.x > 1742) {
+		mouse_pos.x = 1742 - offset.x;
 	}
 
-	if (!found)
-		return{};
+	points = GetTrainStation(train_head);
 
-	float mid_y_point = std::lerp(points.first.y, points.second.y, helpers::NormalizeValue(points.first.x, points.second.x, mouse_pos.x));
+	float mid_y_point = std::lerp(points.first.y, points.second.y, helpers::NormalizeValue(points.first.x, points.second.x, train_head.x));
 
 	SM_ASSERT(!std::isnan(mid_y_point), "Lerp returned nan");
 
@@ -1106,7 +1121,7 @@ sf::Vector2f TrainRoute::GetTrainPos(sf::Vector2f train_head)
 
 void Station::Update()
 {
-	m_Train.FollowTheMouse(&m_Routes[2]);
+	m_Train.FollowTheMouse(&m_Routes[0]);
 }
 
 

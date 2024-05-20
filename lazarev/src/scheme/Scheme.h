@@ -88,7 +88,7 @@ enum ContactsGroupName_e
 	s1_c_CHPZ_1,
 	s1_c_CHDP_1,
 	s1_c_2_4_SP,
-	
+
 	s1_c_2PK_1,
 	s1_c_2PK_2,
 	s1_c_2MK,
@@ -99,7 +99,7 @@ enum ContactsGroupName_e
 	s1_c_1P,
 	s1_c_2P,
 	s1_c_4P,
-	
+
 	s2_c_CHGS1,
 	s2_c_CHBS1,
 	s2_c_CH2M,
@@ -229,16 +229,16 @@ class RelayCoil : public WidgetsBase
 	CoilContact			m_Contacts[2];
 	bool				isActiveOnThisFrame = false;
 	bool				wasActiveOnPrevFrame = false;
-	RelayContactsGroup*	groupToCheck = nullptr;
+	RelayContactsGroup* groupToCheck = nullptr;
 
 
 public:
 
 	RelayCoil();
-	
+
 	CoilContact* GetContact_1();
 	CoilContact* GetContact_2();
-	
+
 	void SendSignalThroughItself(CoilContact* sender, bool signal);
 	void ResetCoil();
 	bool isActive();
@@ -256,19 +256,19 @@ public:
 
 class RelayContactsGroup : public WidgetsBase
 {
-	Relay*			self_relay = nullptr;
+	Relay* self_relay = nullptr;
 	RelayContact	m_Contacts[3];
 	bool			IsUsedOnThisFrame = false;
 
 public:
 
 	RelayContactsGroup(sf::Vector2f n11_pos, Relay* relay, bool invert_x = false, bool invert_y = false);
-	
+
 	void			ManageSpriteState();
-	Relay*			GetSelfRelay();
+	Relay* GetSelfRelay();
 	void			SendSignalThroughItself(RelayContact* sender, bool signal);
 	void			Draw();
-	RelayContact*	getContact(RelayContactName_e name);
+	RelayContact* getContact(RelayContactName_e name);
 	bool			IsUsed();
 	void			Reset();
 };
@@ -282,18 +282,18 @@ public:
 // it's mostly an abstract thing
 class Relay
 {
-	const char*		m_name;
+	const char* m_name;
 	RelayCoil		m_Coil;
 	RelayState_e	m_CurrentState = n11_n13;
 
 public:
 
 	Relay(const char* name);
-	
-	RelayCoil*		GetCoil();
+
+	RelayCoil* GetCoil();
 	RelayState_e	GetRelayState();
 	void			UpdateState();
-	const char*		GetName();
+	const char* GetName();
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -314,12 +314,13 @@ class TrainRoute
 	RouteName_e m_CurrentRoute = At_1_Track;
 	std::vector<sf::Vector2f> m_BasePoints; // interpolation points
 public:
-	
+
 	TrainRoute(RouteName_e Route);
 	TrainRoute(std::initializer_list<sf::Vector2f> il);
 	TrainRoute(RouteName_e Route, std::initializer_list<sf::Vector2f> il);
-	void SetLerpPoints(std::initializer_list<sf::Vector2f> il); 
-	sf::Vector2f GetTrainPos(sf::Vector2f train_head);
+	void SetLerpPoints(std::initializer_list<sf::Vector2f> il);
+	sf::Vector2f GetTrainPos(sf::Vector2f train_head, sf::Vector2f offset);
+	std::pair<sf::Vector2f, sf::Vector2f> GetTrainStation(sf::Vector2f pos);
 };
 
 
@@ -372,15 +373,15 @@ protected:
 	std::vector<PathSegment*>	m_PathSegments;
 	PathsSegmentsMapType		m_PathSegmentsMap;
 	ContactGroupsMapType		m_ContactGroupsMap;
-	PathSegment*				s2_entry_segment = nullptr;
-	PathSegment*				s1_entry_segment = nullptr;
+	PathSegment* s2_entry_segment = nullptr;
+	PathSegment* s1_entry_segment = nullptr;
 	Station						m_Station;
 
 public:
 
 	SchemeSegments();
 	~SchemeSegments();
-	
+
 	void ResetPathSegments();
 	void ResetConactGroups();
 	void DrawSegments();
