@@ -21,9 +21,7 @@ bool WidgetsBase::is_hovered()
     if (!pWnd || !pView)
         return false;
 
-    //sf::Vector2f mousePos = sf::Vector2f(sf::Mouse::getPosition(*pWnd));
     sf::Vector2f mouseWorldPos = pWnd->mapPixelToCoords(sf::Vector2i(sf::Mouse::getPosition(*pWnd)), *pView);
-
     return m_sprite.getGlobalBounds().contains(mouseWorldPos);
 }
 

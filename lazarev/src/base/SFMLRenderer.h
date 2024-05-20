@@ -23,6 +23,9 @@ class SFMLRenderer
     sf::Clock   m_Clock;
     float       m_frameTime = 0;
     float       m_fps = 0;
+  
+    sf::Vector2f delta_mouse;
+    sf::Vector2f delta_mouse_in_world;
 
     void handleEvents();
 
@@ -39,6 +42,9 @@ public:
     sf::Event*         get_sfEvents();
     sf::View*          get_sfView();
     sf::Font&          get_font();
+    sf::Vector2f       get_delta_mouse();
+    sf::Vector2f       get_world_delta_mouse();
+    sf::Vector2f       get_world_mouse_position();
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

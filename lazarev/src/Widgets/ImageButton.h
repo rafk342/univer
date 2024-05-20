@@ -34,17 +34,19 @@ public:
 
 class TwoStatesButton : public ImageButton
 {
-    bool current_state = false;
-
+    bool m_current_state = false;
+    bool m_lock = false;
     bool ButtonBehavior();
 
 public:
     using ImageButton::ImageButton;
 
     operator bool() { return ButtonBehavior(); }
-    bool getState() { return current_state; }
+    bool getState() { return m_current_state; }
     void SetTrueStateSpriteRect(const sf::IntRect& rect);
     void SetFalseStateSpriteRect(const sf::IntRect& rect);
-
+    void lock();
+    void unlock();
+    bool isLocked();
 };
 

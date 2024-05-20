@@ -36,5 +36,8 @@ namespace helpers
     std::vector<std::string>    split_string    (const std::string& input, const std::string& delimiters, uint16_t expected_vec_size = 16);
     std::string                 strip_string    (const std::string& str);
 
-
+    inline double NormalizeValue(double a, double b, double x)
+    {
+        return (x - a) / (b - a);
+    }
 }

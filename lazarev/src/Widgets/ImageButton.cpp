@@ -6,6 +6,9 @@ bool ImageButton::ButtonBehavior()
         {
             RenderRequests::getWindow()->draw(m_sprite);
         });
+  
+    if (!m_SFMLRenderer.get_sfWindow()->hasFocus())
+        return false;
 
     bool is_hovered_on_this_frame = is_hovered();
 
@@ -77,6 +80,9 @@ bool TwoStatesButton::ButtonBehavior()
             RenderRequests::getWindow()->draw(m_sprite);
         });
 
+    if (!m_SFMLRenderer.get_sfWindow()->hasFocus())
+        return false;
+
     bool is_hovered_on_this_frame = is_hovered();
 
     if (is_hovered_on_this_frame) {
@@ -85,7 +91,7 @@ bool TwoStatesButton::ButtonBehavior()
         m_sprite.setColor(unhovered_color);
     }
 
-    if (current_state) {
+    if (m_current_state) {
         m_sprite.setTextureRect(ActiveSpriteRect);
     } else {
         m_sprite.setTextureRect(InactiveSpriteRect);
@@ -110,7 +116,10 @@ bool TwoStatesButton::ButtonBehavior()
         if (was_pressed_over_the_button && is_hovered_on_this_frame)
         {
             was_pressed_over_the_button = false;
-            current_state = !current_state;
+
+            if (!m_lock)
+                m_current_state = !m_current_state;
+         
             return true;
         }
         else
@@ -130,5 +139,21 @@ void TwoStatesButton::SetFalseStateSpriteRect(const sf::IntRect& rect)
 {
     SetInactiveImageRectSprite(rect);
 }
+
+void TwoStatesButton::lock()
+{
+    m_lock = true;
+}
+
+void TwoStatesButton::unlock()
+{
+    m_lock = false;
+}
+
+bool TwoStatesButton::isLocked()
+{
+    return m_lock;
+}
+
 
 

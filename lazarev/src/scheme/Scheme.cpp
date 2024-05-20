@@ -4,14 +4,22 @@
 
 #define m_debug 0
 
-
 sf::Vector2f PathSegment::SegmentsGlobImageOffset(35, 380);
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//									Globals
+//									Variables
 // 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+const char* buttons_image_path				= "assets\\buttons.png";
+const char* relay_parts_path				= "assets\\relay_parts.png";
+const char* train_pic_path					= "assets\\train.png";
+const char* very_important_data_file_path	= "assets\\SomeVeryImportantData.txt";
+const char* scheme_segments_path			= "assets\\SchemeSegments2";
+const char* overlay_path					= "assets\\scheme_overlay.png";
+const char* station_pic_path				= "assets\\station.png";
+
 
 Relay r_ChGS("r_ChGS");
 Relay r_ChBS("r_ChBS");
@@ -51,6 +59,13 @@ std::array m_RelaysArray =
 	&r_4MK,
 };
 
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//									Functions
+// 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
 void ResetCoils()
 {
 	for (auto relay : m_RelaysArray)
@@ -71,6 +86,12 @@ Relay* FindRelayByName(const std::string& name)
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//									Classes
+//
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //									Contacts
 // 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -78,7 +99,9 @@ Relay* FindRelayByName(const std::string& name)
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //									Contacts base
 
-Contact::Contact(ContactType_e Type) : m_ContactType(Type) {}
+Contact::Contact(ContactType_e Type) 
+	: m_ContactType(Type) 
+{ }
 
 
 void Contact::SendSignal_ToDestinationContacts(bool signal)
@@ -115,8 +138,14 @@ ContactType_e	Contact::GetContactType()								{ return m_ContactType; }
 
 
 
-PathSegmentContact::PathSegmentContact() : Contact(T_NONE) {}
-PathSegmentContact::PathSegmentContact(PathSegment* segment) : Contact(T_NONE) {}
+PathSegmentContact::PathSegmentContact() 
+	: Contact(T_NONE) 
+{ }
+
+PathSegmentContact::PathSegmentContact(PathSegment* segment) 
+	: Contact(T_NONE) 
+{ }
+
 void PathSegmentContact::ConnectToSegment(PathSegment* segment) { self_segment = segment; }
 
 
@@ -155,7 +184,10 @@ void RelayContact::SendSignalToGroup(bool signal)
 //									coils contact
 
 
-CoilContact::CoilContact(RelayCoil* coil) : Contact(T_COIL), selfCoil(coil) {}
+CoilContact::CoilContact(RelayCoil* coil) 
+	: Contact(T_COIL)
+	, selfCoil(coil) 
+{ }
 
 void CoilContact::SendSignalToCoil(bool signal)
 {
@@ -228,7 +260,7 @@ PathSegmentContact*		PathSegment::GetContact_2()			{ return &m_Contacts[1]; }
 
 
 RelayCoil::RelayCoil() 
-	: WidgetsBase("F:\\source\\lazarev\\lazarev\\assets\\relay_parts.png")
+	: WidgetsBase(relay_parts_path)
 	, m_Contacts{this, this}
 {
 	helpers::InvertTexture(m_texture);
@@ -303,7 +335,7 @@ void			RelayCoil::setGroupToCheck(RelayContactsGroup* group) { groupToCheck = gr
 
 
 RelayContactsGroup::RelayContactsGroup(sf::Vector2f n11_pos, Relay* relay, bool invert_x, bool invert_y)
-	: WidgetsBase("F:\\source\\lazarev\\lazarev\\assets\\relay_parts.png")
+	: WidgetsBase(relay_parts_path)
 	, self_relay(relay)
 	, m_Contacts
 	{
@@ -385,7 +417,9 @@ bool			RelayContactsGroup::IsUsed()								{ return IsUsedOnThisFrame; }
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-Relay::Relay(const char* name) : name(name) {}
+Relay::Relay(const char* name) 
+	: m_name(name) 
+{ }
 
 
 void Relay::UpdateState()
@@ -409,7 +443,7 @@ RelayState_e Relay::GetRelayState()
 
 
 RelayCoil*		Relay::GetCoil()		{ return &m_Coil; }
-const char*		Relay::GetName()		{ return name; }
+const char*		Relay::GetName()		{ return m_name; }
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -419,7 +453,8 @@ const char*		Relay::GetName()		{ return name; }
 
 
 
-SchemeOverlay::SchemeOverlay() : WidgetsBase("F:\\source\\lazarev\\lazarev\\assets\\scheme_overlay.png")
+
+SchemeOverlay::SchemeOverlay() : WidgetsBase(overlay_path)
 {
 	m_texture.setSmooth(true);
 	m_sprite.setPosition({ 0, 0 });
@@ -437,7 +472,7 @@ void SchemeOverlay::DrawOverlay()
 
 SchemeSegments::SchemeSegments()
 {
-	std::filesystem::directory_iterator it("F:\\source\\lazarev\\lazarev\\assets\\SchemeSegments2");
+	std::filesystem::directory_iterator it(scheme_segments_path);
 	m_PathSegments.reserve(50);
 
 	for (auto& file_entry : it)
@@ -555,7 +590,7 @@ SchemeSegments::SchemeSegments()
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //									file parser 
 //
-	std::ifstream input("F:\\source\\lazarev\\lazarev\\assets\\SomeVeryImportantData.txt");
+	std::ifstream input(very_important_data_file_path);
 	SM_ASSERT(input.is_open(), "SchemeSegments::SchemeSegments() -> Unable to open some important data ");
 	
 	std::string line;
@@ -726,6 +761,8 @@ void SchemeSegments::ResetConactGroups()
 
 void SchemeSegments::DrawSegments()
 {
+	m_Station.Update();
+
 	RenderRequests::InvokeWidgetUpdate([this]
 		{
 			if (m_PathSegments.empty())
@@ -744,6 +781,8 @@ void SchemeSegments::DrawSegments()
 			r_Ch1M.GetCoil()->DrawCoil();
 			r_ChPZ.GetCoil()->DrawCoil();
 			r_Ch2M.GetCoil()->DrawCoil();
+
+			m_Station.Draw();
 		});
 }
 
@@ -756,18 +795,7 @@ void SchemeSegments::SendSignalFromEntry()
 
 
 Scheme::Scheme()
-{
-
-}
-
-ImageButton chbs_btn("F:\\source\\sfml_test_app\\sfml_test_app\\resources\\buttons.png");
-ImageButton m_btn("F:\\source\\sfml_test_app\\sfml_test_app\\resources\\buttons.png");
-ImageButton m_btn2("F:\\source\\sfml_test_app\\sfml_test_app\\resources\\buttons.png");
-ImageButton m_btn3("F:\\source\\sfml_test_app\\sfml_test_app\\resources\\buttons.png");
-ImageButton m_btn4("F:\\source\\sfml_test_app\\sfml_test_app\\resources\\buttons.png");
-ImageButton m_btn5("F:\\source\\sfml_test_app\\sfml_test_app\\resources\\buttons.png");
-TwoStatesButton m_2StrBtn("F:\\source\\sfml_test_app\\sfml_test_app\\resources\\buttons.png");
-TwoStatesButton m_4StrBtn("F:\\source\\sfml_test_app\\sfml_test_app\\resources\\buttons.png");
+{ }
 
 
 void Text_SetColPos(sf::Text& text, sf::Vector2f vec)
@@ -787,6 +815,15 @@ void Scheme::DrawScheme()
 	static bool coil_flag4 = false;
 	static bool coil_flag5 = false;
 	static bool coil_flag6 = false;
+
+	static ImageButton chbs_btn(buttons_image_path);
+	static ImageButton m_btn(buttons_image_path);
+	static ImageButton m_btn2(buttons_image_path);
+	static ImageButton m_btn3(buttons_image_path);
+	static ImageButton m_btn4(buttons_image_path);
+	static ImageButton m_btn5(buttons_image_path);
+	static TwoStatesButton m_2StrBtn(buttons_image_path);
+	static TwoStatesButton m_4StrBtn(buttons_image_path);
 
 
 	/*if (m_btn) 
@@ -870,32 +907,35 @@ void Scheme::DrawScheme()
 	m_SchemeSegments.SendSignalFromEntry();
 	
 	//static sf::Text m_text("CH2M", m_SFMLRenderer.get_font(), 35);
+	
+	//static sf::Text m_text(L"×2Ì", m_SFMLRenderer.get_font(), 35);
 	//Text_SetColPos(m_text, { 210, 1200 });
 
-	static sf::Text m_text1("CHBS", m_SFMLRenderer.get_font(), 35);
+	static sf::Text m_text1(L"×ÁÑ", m_SFMLRenderer.get_font(), 35);
 	Text_SetColPos(m_text1, { 210, 1280 });
-		
-	static sf::Text m_text2("CHIP", m_SFMLRenderer.get_font(), 35);
+
+	static sf::Text m_text2(L"×ÈÏ", m_SFMLRenderer.get_font(), 35);
 	Text_SetColPos(m_text2, { 210, 1360 });
 
-	static sf::Text m_text3("CHDP", m_SFMLRenderer.get_font(), 35);
+	static sf::Text m_text3(L"×ÄÏ", m_SFMLRenderer.get_font(), 35);
 	Text_SetColPos(m_text3, { 210, 1440 });
 	
-	static sf::Text m_text4("2-4 SP", m_SFMLRenderer.get_font(), 35);
+	static sf::Text m_text4(L"2-4 ÑÏ", m_SFMLRenderer.get_font(), 35);
 	Text_SetColPos(m_text4, { 210, 1520 });	
 	
-	static sf::Text m_text5("CH1M", m_SFMLRenderer.get_font(), 35);
+	static sf::Text m_text5(L"×1Ì", m_SFMLRenderer.get_font(), 35);
 	Text_SetColPos(m_text5, { 210, 1600 });
 
-	static sf::Text m_text6("Strelka2", m_SFMLRenderer.get_font(), 35);
+	static sf::Text m_text6(L"Ñòðåëêà 2", m_SFMLRenderer.get_font(), 35);
 	Text_SetColPos(m_text6, { 210, 1680 });
 	
-	static sf::Text m_text7("Strelka4", m_SFMLRenderer.get_font(), 35);
+	static sf::Text m_text7(L"Ñòðåëêà 4", m_SFMLRenderer.get_font(), 35);
 	Text_SetColPos(m_text7, { 210, 1760 });
 
 	m_SchemeSegments.DrawSegments();
 	m_Overlay.DrawOverlay();
 	
+
 	RenderRequests::InvokeWidgetUpdate([]
 		{
 			//RenderRequests::getWindow()->draw(m_text);
@@ -912,5 +952,200 @@ void Scheme::DrawScheme()
 #if m_debug
 	std::cout << "\n\n\n\n";
 #endif
+}
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//									Train 
+// 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+void Train::UpdateHeadAndTailPos()
+{
+	auto pos = m_sprite.getPosition();
+	auto texture_sz = m_texture.getSize();
+	m_HeadPos = { pos.x - texture_sz.x , pos.y - texture_sz.y / 2 };
+}
+
+Train::Train()
+	: WidgetsBase(train_pic_path)
+{
+	m_texture.setSmooth(true);
+	SetPosition({ 325, 143 });
+}
+
+
+void Train::Draw()
+{
+	UpdateHeadAndTailPos();
+	RenderRequests::getWindow()->draw(m_sprite);
+}
+
+
+void Train::SetPosition(const sf::Vector2f& pos)
+{
+	auto texture_sz = m_texture.getSize();
+//	m_HeadPos = { pos.x - texture_sz.x , pos.y - texture_sz.y / 2 };
+	m_HeadPos = { pos.x, pos.y - texture_sz.y / 2 };
+	m_sprite.setPosition(m_HeadPos);
+}
+
+
+sf::Vector2f Train::GetHeadPos() { return m_HeadPos; }
+sf::Vector2f Train::GetTailPos() { return m_TailPos; }
+
+
+void Train::FollowTheMouse(TrainRoute* route)
+{
+	if (!m_SFMLRenderer.get_sfWindow()->hasFocus())
+		return;
+
+	bool is_mouse_pressed_on_this_frame = sf::Mouse::isButtonPressed(sf::Mouse::Left);
+	static bool catched = false;
+	static sf::Vector2f offset;
+
+	
+	if (is_hovered() && is_mouse_pressed_on_this_frame && !catched)
+	{
+		catched = true;
+		offset = m_sprite.getPosition() - m_SFMLRenderer.get_world_mouse_position();
+
+	}
+	else if (catched && is_mouse_pressed_on_this_frame)
+	{
+		sf::Vector2f targetHeadPos = route->GetTrainPos(m_HeadPos);
+		targetHeadPos.x += offset.x;
+
+
+		m_sprite.setPosition(targetHeadPos);
+		SetPosition(targetHeadPos);
+		//UpdateHeadAndTailPos();
+
+	}
+	else if (!is_mouse_pressed_on_this_frame)
+	{
+		catched = false;
+	}
+}
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//									Route 
+// 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+TrainRoute::TrainRoute(RouteName_e Route) 
+	: m_CurrentRoute(Route)
+{ }
+
+TrainRoute::TrainRoute(std::initializer_list<sf::Vector2f> il) 
+	: m_BasePoints(il) 
+{ }
+
+TrainRoute::TrainRoute(RouteName_e Route, std::initializer_list<sf::Vector2f> il) 
+	: m_CurrentRoute(Route)
+	, m_BasePoints(il)
+{ }
+
+
+void TrainRoute::SetLerpPoints(std::initializer_list<sf::Vector2f> il) 
+{
+	m_BasePoints.clear(); 
+	m_BasePoints = il;
+}
+
+
+sf::Vector2f TrainRoute::GetTrainPos(sf::Vector2f train_head)
+{
+	auto mouse_pos = m_SFMLRenderer.get_world_mouse_position();
+
+	std::pair<sf::Vector2f, sf::Vector2f> points;
+	bool found = false;
+
+	if (mouse_pos.x < 325)
+		mouse_pos.x = 325;
+
+	if (mouse_pos.x > 1742)
+		mouse_pos.x = 1742;
+
+	for (size_t i = 0; i < m_BasePoints.size() - 1; ++i) 
+	{
+		const sf::Vector2f& pointA = m_BasePoints[i];
+		const sf::Vector2f& pointB = m_BasePoints[i + 1];
+
+		if (pointA.x <= mouse_pos.x && pointB.x >= mouse_pos.x)
+		{
+			found = true;
+			points = { pointA, pointB };
+		}
+	}
+
+	if (!found)
+		return{};
+
+	float mid_y_point = std::lerp(points.first.y, points.second.y, helpers::NormalizeValue(points.first.x, points.second.x, mouse_pos.x));
+
+	SM_ASSERT(!std::isnan(mid_y_point), "Lerp returned nan");
+
+	return {mouse_pos.x, mid_y_point};
+}
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//									Station 
+// 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+void Station::Update()
+{
+	m_Train.FollowTheMouse(&m_Routes[2]);
+}
+
+
+Station::Station()
+	: WidgetsBase(station_pic_path) 
+	, m_Routes {
+		{At_1_Track,
+			{
+				{325, 143},
+				{1043, 143},
+				{1160, 73},
+				{1742, 73},
+			}
+		},
+		{At_2_Track,
+			{
+				{325, 143},
+				{1742, 143},
+			}
+		},
+		{At_4_Track,
+			{
+				{325, 143},
+				{1137,143},
+				{1246, 211},
+				{1742, 211},
+			}
+		},
+	}
+{
+	m_texture.setSmooth(true);
 
 }
+
+void Station::Draw()
+{
+	if (train_should_be_drawn)
+		m_Train.Draw();
+
+	RenderRequests::getWindow()->draw(m_sprite);
+}
+

@@ -51,37 +51,36 @@ void SFMLRenderer::Init()
 
 void SFMLRenderer::OnRender()
 {
-	ImageButton m_btn("F:\\source\\sfml_test_app\\sfml_test_app\\resources\\buttons.png");
-	m_btn.SetPosition({ 25, 40 });
-	m_btn.SetInactiveImageRectSprite({ 6,3,54,50 });
-	m_btn.SetActiveImageRectSprite({ 262,3,54,50 });
-
 	Scheme m_scheme;
 
 	sf::Time prevTime;
 	sf::Time currTime;
 
-	sf::Vector2f prev_mouse_pos;
-	sf::Vector2f curr_mouse_pos;
-	sf::Vector2f delta_mouse;
+	sf::Vector2f prev_mouse_pos{};
+	sf::Vector2f curr_mouse_pos{};
+	
+	sf::Vector2f prev_mouse_world_pos{};
+	sf::Vector2f curr_mouse_world_pos{};
+
 
 	while (m_Window->isOpen())
 	{
+		curr_mouse_pos = sf::Vector2f(sf::Mouse::getPosition());
+		curr_mouse_world_pos = m_Window->mapPixelToCoords(sf::Mouse::getPosition(*m_Window), m_view);
 		currTime = m_Clock.getElapsedTime();
+		
 		m_frameTime = currTime.asSeconds() - prevTime.asSeconds();
 		m_fps = 1.f / m_frameTime;
 
-		curr_mouse_pos = sf::Vector2f(sf::Mouse::getPosition());
 		delta_mouse = curr_mouse_pos - prev_mouse_pos;
-		
-		if (sf::Mouse::isButtonPressed(sf::Mouse::Middle))
-			m_view.move(-(delta_mouse));
-
-		if (m_btn)
-			std::println("fps : {}", m_fps);
-		
+		delta_mouse_in_world = curr_mouse_world_pos - prev_mouse_world_pos;
+		if (m_Window->hasFocus())
+		{
+			if (sf::Mouse::isButtonPressed(sf::Mouse::Middle))
+				m_view.move(-(delta_mouse));
+		}
 		handleEvents();
-	
+
 		m_scheme.DrawScheme();
 
 		m_Window->setView(m_view);
@@ -95,6 +94,7 @@ void SFMLRenderer::OnRender()
 	
 		//std::println("{:.10f}", std::chrono::duration_cast<std::chrono::duration<double>>(std::chrono::high_resolution_clock::now() - start).count());
 
+		prev_mouse_world_pos = curr_mouse_world_pos;
 		prev_mouse_pos = curr_mouse_pos;
 		prevTime = currTime;
 	}
@@ -113,14 +113,17 @@ void SFMLRenderer::handleEvents()
 			m_view.setSize(sf::Vector2f(m_Window->getSize()));
 			m_view.setCenter(sf::Vector2f(m_Window->getSize()) / 2.0f);
 		}
-
-		if (m_event.type == sf::Event::MouseWheelScrolled)
+		
+		if (m_Window->hasFocus())
 		{
-			if (m_event.mouseWheelScroll.delta > 0)
-				m_view.zoom(0.95);
-			
-			else if (m_event.mouseWheelScroll.delta < 0)
-				m_view.zoom(1.05f);
+			if (m_event.type == sf::Event::MouseWheelScrolled)
+			{
+				if (m_event.mouseWheelScroll.delta > 0)
+					m_view.zoom(0.95);
+
+				else if (m_event.mouseWheelScroll.delta < 0)
+					m_view.zoom(1.05f);
+			}
 		}
 	}
 }
@@ -131,7 +134,14 @@ void SFMLRenderer::handleEvents()
 
 
 sf::Event*			SFMLRenderer::get_sfEvents()	{ return &m_event;}
+sf::Vector2f		SFMLRenderer::get_delta_mouse() { return delta_mouse; }
 sf::View*			SFMLRenderer::get_sfView()		{ return &m_view;}
 sf::RenderWindow*	SFMLRenderer::get_sfWindow()	{ return m_Window.get();}
 sf::Font&			SFMLRenderer::get_font()		{ return m_font;}
+sf::Vector2f		SFMLRenderer::get_world_delta_mouse() { return delta_mouse_in_world; }
+
+sf::Vector2f SFMLRenderer::get_world_mouse_position()
+{
+	return m_Window->mapPixelToCoords(sf::Mouse::getPosition(*m_SFMLRenderer.get_sfWindow()), *m_SFMLRenderer.get_sfView());
+}
 

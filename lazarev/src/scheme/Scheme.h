@@ -31,6 +31,7 @@ class RelayContactsGroup;
 // 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+
 extern Relay r_ChGS;
 extern Relay r_ChBS;
 extern Relay r_ChIP;
@@ -48,7 +49,6 @@ extern Relay r_2MK;
 extern Relay r_2PK;
 extern Relay r_4MK;
 extern Relay r_4PK;
-
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -107,10 +107,9 @@ enum ContactsGroupName_e
 };
 
 
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //									Classes
-// 
+//
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
@@ -283,9 +282,9 @@ public:
 // it's mostly an abstract thing
 class Relay
 {
-	const char* name;
-	RelayCoil m_Coil;
-	RelayState_e m_CurrentState = n11_n13;
+	const char*		m_name;
+	RelayCoil		m_Coil;
+	RelayState_e	m_CurrentState = n11_n13;
 
 public:
 
@@ -302,6 +301,66 @@ public:
 // 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+enum RouteName_e
+{
+	At_1_Track,
+	At_2_Track,
+	At_4_Track,
+};
+
+
+class TrainRoute
+{
+	RouteName_e m_CurrentRoute = At_1_Track;
+	std::vector<sf::Vector2f> m_BasePoints; // interpolation points
+public:
+	
+	TrainRoute(RouteName_e Route);
+	TrainRoute(std::initializer_list<sf::Vector2f> il);
+	TrainRoute(RouteName_e Route, std::initializer_list<sf::Vector2f> il);
+	void SetLerpPoints(std::initializer_list<sf::Vector2f> il); 
+	sf::Vector2f GetTrainPos(sf::Vector2f train_head);
+};
+
+
+class Train : public WidgetsBase
+{
+	sf::Vector2f m_HeadPos{};
+	sf::Vector2f m_TailPos{};
+
+	void UpdateHeadAndTailPos();
+
+public:
+
+	Train();
+	void Draw();
+	void SetPosition(const sf::Vector2f& pos);
+	sf::Vector2f GetHeadPos();
+	sf::Vector2f GetTailPos();
+
+	void FollowTheMouse(TrainRoute* route);
+
+};
+
+
+class Station : public WidgetsBase
+{
+	TrainRoute m_Routes[3];
+	Train	   m_Train;
+
+	bool train_should_be_drawn = true;
+
+public:
+	void Update();
+
+	Station();
+	void Draw();
+
+};
+
+
+
+
 
 class SchemeSegments
 {
@@ -315,7 +374,8 @@ protected:
 	ContactGroupsMapType		m_ContactGroupsMap;
 	PathSegment*				s2_entry_segment = nullptr;
 	PathSegment*				s1_entry_segment = nullptr;
-	
+	Station						m_Station;
+
 public:
 
 	SchemeSegments();
