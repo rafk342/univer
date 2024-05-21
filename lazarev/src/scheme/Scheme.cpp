@@ -118,35 +118,38 @@ bool Contact::SendSignal_ToDestinationContacts(bool signal)
 	for (auto dest : destinations)
 	{
 		bool result = false;
-		auto type = dest->GetContactType();
 
-		if (type == T_NONE)
+		switch (dest->GetContactType())
 		{
+		case T_NONE:
+			
 			result = static_cast<PathSegmentContact*>(dest)->SendSignalToSegment(signal);
-			
-			if (!result && signal == true)
+			if (!result && signal)
 				static_cast<PathSegmentContact*>(dest)->SendSignalToSegment(false);
-		}
-		else if (type == T_RELAY)
-		{
-			result = static_cast<RelayContact*>(dest)->SendSignalToGroup(signal);
+
+			break;
+		case T_COIL:
 			
-			if (!result && signal == true)
-				static_cast<RelayContact*>(dest)->SendSignalToGroup(false);
-		}
-		else if (type == T_COIL)
-		{
 			result = static_cast<CoilContact*>(dest)->SendSignalToCoil(signal);
-			
-			if (!result && signal == true)
+			if (!result && signal)
 				static_cast<CoilContact*>(dest)->SendSignalToCoil(false);
+
+			break;
+		case T_RELAY:
+			
+			result = static_cast<RelayContact*>(dest)->SendSignalToGroup(signal);
+			if (!result && signal)
+				static_cast<RelayContact*>(dest)->SendSignalToGroup(false);
+
+			break;
+		default:
+			break;
 		}
 
 		results.push_back(result);
 	}
 	
-	bool is_any_active = std::ranges::any_of(results, [](bool val) { return val == true; });
-	return is_any_active;
+	return std::ranges::any_of(results, [](bool val) { return val == true; });
 }
 
 void Contact::PushContactAsDestination(Contact* contact)
@@ -257,22 +260,25 @@ void PathSegment::ResetSegment()
 
 bool PathSegment::SendSignalThroughItself(PathSegmentContact* sender, bool signal)
 {
-	if (m_name == "s1_15_6_output" || m_name == "s2_5_1")
+	//if (m_name == "s1_15_6_output" || m_name == "s2_5_1")
+	//	return true;
+	//
+	if (isOutputSegment && signal)
+	{
+		isActiveOnThisFrame = signal;
+		m_sprite.setColor(sf::Color(200, 0, 0, 255));
 		return true;
-	
+	}
+
 	if (isActiveOnThisFrame && signal)
 		return true;
 
 	isActiveOnThisFrame = signal;
 
 	if (signal)
-	{
 		m_sprite.setColor(sf::Color(200, 0, 0, 255));
-	}
 	else
-	{
 		m_sprite.setColor(sf::Color(0, 0, 0, 255));
-	}
 
 	if (sender == &m_Contacts[0])
 	{
@@ -291,6 +297,8 @@ void PathSegment::Draw()
 
 	RenderRequests::getWindow()->draw(m_sprite);
 }
+
+void PathSegment::MarkSegmentAsOutput() { isOutputSegment = true; }
 
 
 bool					PathSegment::isActive()				{ return isActiveOnThisFrame; }
@@ -543,7 +551,16 @@ SchemeSegments::SchemeSegments()
 
 		if (m_PathSegments.back()->getName() == "s1_1_1_entry")
 			s1_entry_segment = m_PathSegments.back();
+
+		if (m_PathSegments.back()->getName() == "s1_15_6_output")
+			m_PathSegments.back()->MarkSegmentAsOutput();
+		
+		if (m_PathSegments.back()->getName() == "s2_5_1")
+			m_PathSegments.back()->MarkSegmentAsOutput();
+	
 	}
+
+
 
 #define make_group(name, ...) {name, new RelayContactsGroup(__VA_ARGS__)} 
 
@@ -1078,11 +1095,7 @@ void Train::FollowTheMouse(TrainRoute* route)
 		sf::Vector2f targetHeadPos = route->GetTrainPos(m_HeadPos, headOffset);
 		targetHeadPos.x += offset.x;
 
-
-		//m_sprite.setPosition(targetHeadPos);
 		SetPosition(targetHeadPos);
-		//UpdateHeadAndTailPos();
-
 	}
 	else if (!is_mouse_pressed_on_this_frame)
 	{
@@ -1119,7 +1132,7 @@ void TrainRoute::SetupLerpPoints(std::initializer_list<sf::Vector2f> il)
 	m_BasePoints = il;
 }
 
-std::pair<sf::Vector2f, sf::Vector2f> TrainRoute::GetTrainStation(sf::Vector2f pos) 
+std::pair<sf::Vector2f, sf::Vector2f> TrainRoute::GetRailwaySegment(sf::Vector2f pos) 
 {
 	std::pair<sf::Vector2f, sf::Vector2f> points;
 	bool found = false;
@@ -1157,7 +1170,7 @@ sf::Vector2f TrainRoute::GetTrainPos(sf::Vector2f train_head, sf::Vector2f offse
 		mouse_pos.x = 1742 - offset.x;
 	}
 
-	points = GetTrainStation(train_head);
+	points = GetRailwaySegment(train_head);
 
 	float mid_y_point = std::lerp(points.first.y, points.second.y, helpers::NormalizeValue(points.first.x, points.second.x, train_head.x));
 
@@ -1176,15 +1189,14 @@ sf::Vector2f TrainRoute::GetTrainPos(sf::Vector2f train_head, sf::Vector2f offse
 
 void Station::Update()
 {
-	m_Train.FollowTheMouse(&m_Routes[0]);
+	m_Train.FollowTheMouse(&m_Routes[2]);
 }
 
 
 Station::Station()
 	: WidgetsBase(station_pic_path) 
 	, m_Routes {
-		{
-			At_1_Track,
+		{ At_1_line,
 			{
 				{325, 143},
 				{1043, 143},
@@ -1192,15 +1204,13 @@ Station::Station()
 				{1742, 73},
 			}
 		},
-		{
-			At_2_Track,
+		{ At_2_line,
 			{
 				{325, 143},
 				{1742, 143},
 			}
 		},
-		{
-			At_4_Track,
+		{ At_4_line,
 			{
 				{325, 143},
 				{1137,143},

@@ -200,6 +200,7 @@ class PathSegment : public WidgetsBase
 	PathSegmentContact		m_Contacts[2];
 	std::string				m_name;
 	bool					isActiveOnThisFrame = false;
+	bool					isOutputSegment = false;
 
 public:
 
@@ -213,6 +214,7 @@ public:
 	bool isActive();
 	bool SendSignalThroughItself(PathSegmentContact* sender, bool signal);
 	void Draw();
+	void MarkSegmentAsOutput();
 };
 
 
@@ -283,7 +285,7 @@ public:
 // it's mostly an abstract thing
 class Relay
 {
-	const char* m_name;
+	const char*		m_name;
 	RelayCoil		m_Coil;
 	RelayState_e	m_CurrentState = n11_n13;
 
@@ -304,16 +306,17 @@ public:
 
 enum RouteName_e
 {
-	At_1_Track,
-	At_2_Track,
-	At_4_Track,
+	At_1_line,
+	At_2_line,
+	At_4_line,
 };
 
 
 class TrainRoute
 {
-	RouteName_e m_CurrentRoute = At_1_Track;
+	RouteName_e m_CurrentRoute = At_1_line;
 	std::vector<sf::Vector2f> m_BasePoints; // interpolation points
+
 public:
 
 	TrainRoute(RouteName_e Route);
@@ -321,7 +324,7 @@ public:
 	TrainRoute(RouteName_e Route, std::initializer_list<sf::Vector2f> il);
 	void SetupLerpPoints(std::initializer_list<sf::Vector2f> il);
 	sf::Vector2f GetTrainPos(sf::Vector2f train_head, sf::Vector2f offset);
-	std::pair<sf::Vector2f, sf::Vector2f> GetTrainStation(sf::Vector2f pos);
+	std::pair<sf::Vector2f, sf::Vector2f> GetRailwaySegment(sf::Vector2f pos);
 };
 
 
