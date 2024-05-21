@@ -20,19 +20,6 @@
 // Relay r_4PK("r_4PK");
 // Relay r_4MK("r_4MK");
 
-	
-
-	#P*s2_1_1*C2 @ #G*s2_c_CHGS1*N11 & #G*s2_c_CHGS1*N13 @ #P*s2_2_1*C1
-	#P*s2_2_1*C2 @ #G*s2_c_CHBS1*N11 & #G*s2_c_CHBS1*N13 @ #P*s2_3_1*C1
-	#P*s2_3_1*C2 @ 										 @ #P*s2_3_3*C1
-	#P*s2_3_1*C2 @ 										 @ #P*s2_3_2*C1
-	#P*s2_3_3*C2 @ #G*s2_c_CH2M*N11 & #G*s2_c_CH2M*N12 	 @ #P*s2_4_3*C1
-	#P*s2_3_2*C2 @ #G*s2_c_CHPZ*N11 & #G*s2_c_CHPZ*N12   @ #P*s2_4_1*C1
-	#P*s2_4_1*C2 @ 									     @ #P*s2_4_2*C1
-	#P*s2_4_3*C2 @ 									     @ #P*s2_4_2*C1
-	#P*s2_4_2*C2 @ #C*r_ChPZ*C1 & #C*r_ChPZ*C2 			 @ #P*s2_5_1*C1
-	
-	
 //	enum ContactsGroupName_e
 //	{
 //		s1_c_CHGS_1,
@@ -59,6 +46,19 @@
 //		s2_c_CHPZ,
 //	};
 //
+	
+
+	#P*s2_1_1*C2 @ #G*s2_c_CHGS1*N11 & #G*s2_c_CHGS1*N13 @ #P*s2_2_1*C1
+	#P*s2_2_1*C2 @ #G*s2_c_CHBS1*N11 & #G*s2_c_CHBS1*N13 @ #P*s2_3_1*C1
+	#P*s2_3_1*C2 @ 										 @ #P*s2_3_3*C1
+	#P*s2_3_1*C2 @ 										 @ #P*s2_3_2*C1
+	#P*s2_3_3*C2 @ #G*s2_c_CH2M*N11 & #G*s2_c_CH2M*N12 	 @ #P*s2_4_3*C1
+	#P*s2_3_2*C2 @ #G*s2_c_CHPZ*N11 & #G*s2_c_CHPZ*N12   @ #P*s2_4_1*C1
+	#P*s2_4_1*C2 @ 									     @ #P*s2_4_2*C1
+	#P*s2_4_3*C2 @ 									     @ #P*s2_4_2*C1
+	#P*s2_4_2*C2 @ #C*r_ChPZ*C1 & #C*r_ChPZ*C2 			 @ #P*s2_5_1*C1
+	
+	
 
 	#P*s1_1_1_entry*C2 @   @ #P*s1_1_2*C1
 	#P*s1_1_1_entry*C2 @   @ #P*s1_1_3*C1
@@ -98,8 +98,8 @@
 	#P*s1_3_7*C2 @ #G*s1_c_CH1M_1*N12 & #G*s1_c_CH1M_1*N11 @ #P*s1_5_1*C1 
 	#P*s1_5_1*C2 @ @ #P*s1_5_3*C1
 	
-	#P*s1_5_3*C2 @ #C*r_Ch1M*C1       & #C*r_Ch1M*C2 @ #P*s1_15_1*C1
-	#P*s1_5_1*C2 @ @ #P*s1_5*C1
+	#P*s1_5_3*C2 @ #C*r_Ch1M*C1       & #C*r_Ch1M*C2 	   @ #P*s1_15_1*C1
+	#P*s1_5_1*C2 @ 									       @ #P*s1_5*C1
 	
 	#P*s1_5*C2 @ #G*s1_c_CHDP_1*N11   & #G*s1_c_CHDP_1*N12 @ #P*s1_11*C1
 	

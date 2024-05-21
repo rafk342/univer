@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <ranges>
 #include <fstream>
+#include <list>
 
 #include "Widgets/ImageButton.h"
 #include "base/WidgetsBase.h"
@@ -135,7 +136,7 @@ public:
 
 	ContactType_e	GetContactType();
 	void			PushContactAsDestination(Contact* contact);
-	void			SendSignal_ToDestinationContacts(bool signal);
+	bool			SendSignal_ToDestinationContacts(bool signal);
 
 };
 
@@ -150,7 +151,7 @@ public:
 	PathSegmentContact();
 	PathSegmentContact(PathSegment* segment);
 	void ConnectToSegment(PathSegment* segment);
-	void SendSignalToSegment(bool signal);
+	bool SendSignalToSegment(bool signal);
 
 };
 
@@ -162,7 +163,7 @@ class CoilContact : public Contact
 public:
 
 	CoilContact(RelayCoil* coil);
-	void SendSignalToCoil(bool signal);
+	bool SendSignalToCoil(bool signal);
 
 };
 
@@ -176,7 +177,7 @@ public:
 
 	RelayContact(RelayContactName_e name, RelayContactsGroup* selfGroup);
 	RelayContactName_e getContactName();
-	void SendSignalToGroup(bool signal);
+	bool SendSignalToGroup(bool signal);
 
 };
 
@@ -210,8 +211,8 @@ public:
 
 	void ResetSegment();
 	bool isActive();
-	void SendSignalThroughItself(PathSegmentContact* sender, bool signal);
-
+	bool SendSignalThroughItself(PathSegmentContact* sender, bool signal);
+	void Draw();
 };
 
 
@@ -239,7 +240,7 @@ public:
 	CoilContact* GetContact_1();
 	CoilContact* GetContact_2();
 
-	void SendSignalThroughItself(CoilContact* sender, bool signal);
+	bool SendSignalThroughItself(CoilContact* sender, bool signal);
 	void ResetCoil();
 	bool isActive();
 	void SetState(bool state);
@@ -256,7 +257,7 @@ public:
 
 class RelayContactsGroup : public WidgetsBase
 {
-	Relay* self_relay = nullptr;
+	Relay*			self_relay = nullptr;
 	RelayContact	m_Contacts[3];
 	bool			IsUsedOnThisFrame = false;
 
@@ -265,10 +266,10 @@ public:
 	RelayContactsGroup(sf::Vector2f n11_pos, Relay* relay, bool invert_x = false, bool invert_y = false);
 
 	void			ManageSpriteState();
-	Relay* GetSelfRelay();
-	void			SendSignalThroughItself(RelayContact* sender, bool signal);
+	Relay*			GetSelfRelay();
+	bool			SendSignalThroughItself(RelayContact* sender, bool signal);
 	void			Draw();
-	RelayContact* getContact(RelayContactName_e name);
+	RelayContact*	getContact(RelayContactName_e name);
 	bool			IsUsed();
 	void			Reset();
 };
@@ -290,10 +291,10 @@ public:
 
 	Relay(const char* name);
 
-	RelayCoil* GetCoil();
+	RelayCoil*		GetCoil();
 	RelayState_e	GetRelayState();
 	void			UpdateState();
-	const char* GetName();
+	const char*		GetName();
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -318,7 +319,7 @@ public:
 	TrainRoute(RouteName_e Route);
 	TrainRoute(std::initializer_list<sf::Vector2f> il);
 	TrainRoute(RouteName_e Route, std::initializer_list<sf::Vector2f> il);
-	void SetLerpPoints(std::initializer_list<sf::Vector2f> il);
+	void SetupLerpPoints(std::initializer_list<sf::Vector2f> il);
 	sf::Vector2f GetTrainPos(sf::Vector2f train_head, sf::Vector2f offset);
 	std::pair<sf::Vector2f, sf::Vector2f> GetTrainStation(sf::Vector2f pos);
 };
@@ -373,8 +374,8 @@ protected:
 	std::vector<PathSegment*>	m_PathSegments;
 	PathsSegmentsMapType		m_PathSegmentsMap;
 	ContactGroupsMapType		m_ContactGroupsMap;
-	PathSegment* s2_entry_segment = nullptr;
-	PathSegment* s1_entry_segment = nullptr;
+	PathSegment*				s2_entry_segment = nullptr;
+	PathSegment*				s1_entry_segment = nullptr;
 	Station						m_Station;
 
 public:

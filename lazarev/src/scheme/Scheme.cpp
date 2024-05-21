@@ -60,6 +60,7 @@ std::array m_RelaysArray =
 };
 
 
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //									Functions
 // 
@@ -104,33 +105,58 @@ Contact::Contact(ContactType_e Type)
 { }
 
 
-void Contact::SendSignal_ToDestinationContacts(bool signal)
+bool Contact::SendSignal_ToDestinationContacts(bool signal)
 {
 	if (destinations.empty())
-		return;
+		return false;
+	
+	if (signal == false)
+		return false;
+
+	std::list<bool> results;
 
 	for (auto dest : destinations)
 	{
+		bool result = false;
 		auto type = dest->GetContactType();
 
 		if (type == T_NONE)
 		{
-			static_cast<PathSegmentContact*>(dest)->SendSignalToSegment(signal);
+			result = static_cast<PathSegmentContact*>(dest)->SendSignalToSegment(signal);
+			
+			if (!result && signal == true)
+				static_cast<PathSegmentContact*>(dest)->SendSignalToSegment(false);
 		}
 		else if (type == T_RELAY)
 		{
-			static_cast<RelayContact*>(dest)->SendSignalToGroup(signal);
+			result = static_cast<RelayContact*>(dest)->SendSignalToGroup(signal);
+			
+			if (!result && signal == true)
+				static_cast<RelayContact*>(dest)->SendSignalToGroup(false);
 		}
 		else if (type == T_COIL)
 		{
-			static_cast<CoilContact*>(dest)->SendSignalToCoil(signal);
+			result = static_cast<CoilContact*>(dest)->SendSignalToCoil(signal);
+			
+			if (!result && signal == true)
+				static_cast<CoilContact*>(dest)->SendSignalToCoil(false);
 		}
+
+		results.push_back(result);
 	}
+	
+	bool is_any_active = std::ranges::any_of(results, [](bool val) { return val == true; });
+	return is_any_active;
 }
 
+void Contact::PushContactAsDestination(Contact* contact)
+{
+	if (this != contact)
+		destinations.push_back(contact);
+}
 
-void			Contact::PushContactAsDestination(Contact* contact)		{ if (this != contact) destinations.push_back(contact); }
-ContactType_e	Contact::GetContactType()								{ return m_ContactType; }
+ContactType_e Contact::GetContactType()	{ return m_ContactType; }
+
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -149,11 +175,12 @@ PathSegmentContact::PathSegmentContact(PathSegment* segment)
 void PathSegmentContact::ConnectToSegment(PathSegment* segment) { self_segment = segment; }
 
 
-void PathSegmentContact::SendSignalToSegment(bool signal)
+bool PathSegmentContact::SendSignalToSegment(bool signal)
 {
 	if (self_segment) 
-		self_segment->SendSignalThroughItself(this, signal);
+		return self_segment->SendSignalThroughItself(this, signal);
 
+	return false;
 }
 
 
@@ -171,12 +198,12 @@ RelayContact::RelayContact(RelayContactName_e name, RelayContactsGroup* selfGrou
 
 RelayContactName_e RelayContact::getContactName() { return m_name; }
 
-void RelayContact::SendSignalToGroup(bool signal)
+bool RelayContact::SendSignalToGroup(bool signal)
 {
 	if (!selfContactGroup)
-		return;
+		return false;
 
-	selfContactGroup->SendSignalThroughItself(this, signal);
+	return selfContactGroup->SendSignalThroughItself(this, signal);
 }
 
 
@@ -189,10 +216,12 @@ CoilContact::CoilContact(RelayCoil* coil)
 	, selfCoil(coil) 
 { }
 
-void CoilContact::SendSignalToCoil(bool signal)
+bool CoilContact::SendSignalToCoil(bool signal)
 {
 	if (selfCoil)
-		selfCoil->SendSignalThroughItself(this, signal);
+		return selfCoil->SendSignalThroughItself(this, signal);
+	
+	return false;
 }
 
 
@@ -226,22 +255,41 @@ void PathSegment::ResetSegment()
 }
 
 
-void PathSegment::SendSignalThroughItself(PathSegmentContact* sender, bool signal)
+bool PathSegment::SendSignalThroughItself(PathSegmentContact* sender, bool signal)
 {
-	/*if (isActiveOnThisFrame)
-		return;*/
+	if (m_name == "s1_15_6_output" || m_name == "s2_5_1")
+		return true;
+	
+	if (isActiveOnThisFrame && signal)
+		return true;
 
-	isActiveOnThisFrame = true;
-	m_sprite.setColor(sf::Color(200, 0, 0, 255));
+	isActiveOnThisFrame = signal;
+
+	if (signal)
+	{
+		m_sprite.setColor(sf::Color(200, 0, 0, 255));
+	}
+	else
+	{
+		m_sprite.setColor(sf::Color(0, 0, 0, 255));
+	}
 
 	if (sender == &m_Contacts[0])
 	{
-		m_Contacts[1].SendSignal_ToDestinationContacts(signal);
+		return m_Contacts[1].SendSignal_ToDestinationContacts(signal);
 	}
 	else if (sender == &m_Contacts[1])
 	{
-		m_Contacts[0].SendSignal_ToDestinationContacts(signal);
+		return m_Contacts[0].SendSignal_ToDestinationContacts(signal);
 	}
+}
+
+void PathSegment::Draw()
+{
+	if(!isActiveOnThisFrame)
+		m_sprite.setColor(sf::Color(0, 0, 0, 255));
+
+	RenderRequests::getWindow()->draw(m_sprite);
 }
 
 
@@ -271,18 +319,22 @@ RelayCoil::RelayCoil()
 }
 
 
-void RelayCoil::SendSignalThroughItself(CoilContact* sender, bool signal)
+bool RelayCoil::SendSignalThroughItself(CoilContact* sender, bool signal)
 {
-	isActiveOnThisFrame = true;
-	m_sprite.setColor(sf::Color(255, 0, 0, 255));
+	isActiveOnThisFrame = signal;
+
+	if (signal)
+		m_sprite.setColor(sf::Color(255, 0, 0, 255));
+	else
+		m_sprite.setColor(sf::Color(0, 0, 0, 255));
 
 	if (sender == &m_Contacts[0])
 	{
-		m_Contacts[1].SendSignal_ToDestinationContacts(signal);
+		return m_Contacts[1].SendSignal_ToDestinationContacts(signal);
 	}
 	else if (sender == &m_Contacts[1])
 	{
-		m_Contacts[0].SendSignal_ToDestinationContacts(signal);
+		return m_Contacts[0].SendSignal_ToDestinationContacts(signal);
 	}
 
 }
@@ -374,26 +426,29 @@ void RelayContactsGroup::ManageSpriteState()
 }
 
 
-void RelayContactsGroup::SendSignalThroughItself(RelayContact* sender, bool signal)
+bool RelayContactsGroup::SendSignalThroughItself(RelayContact* sender, bool signal)
 {
 	auto relay_state = self_relay->GetRelayState();
 	auto sender_name = sender->getContactName();
-	IsUsedOnThisFrame = true;
+
+	IsUsedOnThisFrame = signal;
 	
 	if ((relay_state == n11_n12 && sender_name == N13) || (relay_state == n11_n13 && sender_name == N12))
-		return;
+		return false;
 
 	if (relay_state == n11_n12 && sender_name == N11)
-		m_Contacts[N12].SendSignal_ToDestinationContacts(signal);
+		return m_Contacts[N12].SendSignal_ToDestinationContacts(signal);
 	
 	if (relay_state == n11_n12 && sender_name == N12)
-		m_Contacts[N11].SendSignal_ToDestinationContacts(signal);
+		return m_Contacts[N11].SendSignal_ToDestinationContacts(signal);
 
 	if (relay_state == n11_n13 && sender_name == N11)
-		m_Contacts[N13].SendSignal_ToDestinationContacts(signal);
+		return m_Contacts[N13].SendSignal_ToDestinationContacts(signal);
 
 	if (relay_state == n11_n13 && sender_name == N13)
-		m_Contacts[N11].SendSignal_ToDestinationContacts(signal);
+		return m_Contacts[N11].SendSignal_ToDestinationContacts(signal);
+	
+	return false;
 }
 
 
@@ -770,7 +825,7 @@ void SchemeSegments::DrawSegments()
 
 			for (auto path : m_PathSegments)
 			{
-				RenderRequests::getWindow()->draw(path->GetSprite());
+				path->Draw();
 			}
 
 			for (auto [name, group] : m_ContactGroupsMap)
@@ -911,25 +966,25 @@ void Scheme::DrawScheme()
 	//static sf::Text m_text(L"�2�", m_SFMLRenderer.get_font(), 35);
 	//Text_SetColPos(m_text, { 210, 1200 });
 
-	static sf::Text m_text1(L"���", m_SFMLRenderer.get_font(), 35);
+	static sf::Text m_text1(L"ЧБС", m_SFMLRenderer.get_font(), 35);
 	Text_SetColPos(m_text1, { 210, 1280 });
 
-	static sf::Text m_text2(L"���", m_SFMLRenderer.get_font(), 35);
+	static sf::Text m_text2(L"ЧИП", m_SFMLRenderer.get_font(), 35);
 	Text_SetColPos(m_text2, { 210, 1360 });
 
-	static sf::Text m_text3(L"���", m_SFMLRenderer.get_font(), 35);
+	static sf::Text m_text3(L"ЧДП", m_SFMLRenderer.get_font(), 35);
 	Text_SetColPos(m_text3, { 210, 1440 });
 	
-	static sf::Text m_text4(L"2-4 ��", m_SFMLRenderer.get_font(), 35);
+	static sf::Text m_text4(L"2-4 СП", m_SFMLRenderer.get_font(), 35);
 	Text_SetColPos(m_text4, { 210, 1520 });	
 	
 	static sf::Text m_text5(L"�1�", m_SFMLRenderer.get_font(), 35);
 	Text_SetColPos(m_text5, { 210, 1600 });
 
-	static sf::Text m_text6(L"������� 2", m_SFMLRenderer.get_font(), 35);
+	static sf::Text m_text6(L"Стрелка 2", m_SFMLRenderer.get_font(), 35);
 	Text_SetColPos(m_text6, { 210, 1680 });
 	
-	static sf::Text m_text7(L"������� 4", m_SFMLRenderer.get_font(), 35);
+	static sf::Text m_text7(L"Стрелка 4", m_SFMLRenderer.get_font(), 35);
 	Text_SetColPos(m_text7, { 210, 1760 });
 
 	m_SchemeSegments.DrawSegments();
@@ -948,7 +1003,7 @@ void Scheme::DrawScheme()
 			RenderRequests::getWindow()->draw(m_text7);
 		});
 	
-
+	
 #if m_debug
 	std::cout << "\n\n\n\n";
 #endif
@@ -1058,7 +1113,7 @@ TrainRoute::TrainRoute(RouteName_e Route, std::initializer_list<sf::Vector2f> il
 { }
 
 
-void TrainRoute::SetLerpPoints(std::initializer_list<sf::Vector2f> il) 
+void TrainRoute::SetupLerpPoints(std::initializer_list<sf::Vector2f> il) 
 {
 	m_BasePoints.clear(); 
 	m_BasePoints = il;
@@ -1095,8 +1150,8 @@ sf::Vector2f TrainRoute::GetTrainPos(sf::Vector2f train_head, sf::Vector2f offse
 	std::pair<sf::Vector2f, sf::Vector2f> points;
 	bool found = false;
 
-	if (mouse_pos.x < 325)
-		mouse_pos.x = 325;
+	if (mouse_pos.x + offset.x < 325)
+		mouse_pos.x = 325 - offset.x;
 
 	if (mouse_pos.x + offset.x > 1742) {
 		mouse_pos.x = 1742 - offset.x;
@@ -1128,7 +1183,8 @@ void Station::Update()
 Station::Station()
 	: WidgetsBase(station_pic_path) 
 	, m_Routes {
-		{At_1_Track,
+		{
+			At_1_Track,
 			{
 				{325, 143},
 				{1043, 143},
@@ -1136,13 +1192,15 @@ Station::Station()
 				{1742, 73},
 			}
 		},
-		{At_2_Track,
+		{
+			At_2_Track,
 			{
 				{325, 143},
 				{1742, 143},
 			}
 		},
-		{At_4_Track,
+		{
+			At_4_Track,
 			{
 				{325, 143},
 				{1137,143},
@@ -1158,9 +1216,9 @@ Station::Station()
 
 void Station::Draw()
 {
+	RenderRequests::getWindow()->draw(m_sprite);
+
 	if (train_should_be_drawn)
 		m_Train.Draw();
-
-	RenderRequests::getWindow()->draw(m_sprite);
 }
 
