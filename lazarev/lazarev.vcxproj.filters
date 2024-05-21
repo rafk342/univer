@@ -374,6 +374,12 @@
     <ClInclude Include="src\scheme\Scheme.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
+    <ClInclude Include="vendor\Cougar\AlignedAllocator.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="vendor\Cougar\FixedSizeAllocator.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="vendor\SFML\Audio\SoundFileFactory.inl">

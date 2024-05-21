@@ -7,10 +7,14 @@
 #include <fstream>
 #include <list>
 
+#include "Cougar/FixedSizeAllocator.h"
+
 #include "Widgets/ImageButton.h"
 #include "base/WidgetsBase.h"
 #include "base/RenderRequests.h"
 #include "helpers/Helpers.h"
+
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //									Forward Decl
@@ -324,7 +328,10 @@ public:
 	TrainRoute(RouteName_e Route, std::initializer_list<sf::Vector2f> il);
 	void SetupLerpPoints(std::initializer_list<sf::Vector2f> il);
 	sf::Vector2f GetTrainPos(sf::Vector2f train_head, sf::Vector2f offset);
+	float GetTrainRot(sf::Vector2f train_head, sf::Vector2f train_tail);
+
 	std::pair<sf::Vector2f, sf::Vector2f> GetRailwaySegment(sf::Vector2f pos);
+
 };
 
 
@@ -339,7 +346,7 @@ public:
 
 	Train();
 	void Draw();
-	void SetPosition(const sf::Vector2f& pos);
+	void SetPosition(const sf::Vector2f& new_pos);
 	sf::Vector2f GetHeadPos();
 	sf::Vector2f GetTailPos();
 
@@ -390,7 +397,7 @@ public:
 	void ResetConactGroups();
 	void DrawSegments();
 	void SendSignalFromEntry();
-
+	Station& GetStation();
 };
 
 

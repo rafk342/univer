@@ -154,6 +154,8 @@
     <ClInclude Include="src\Widgets\ImageButton.h" />
     <ClInclude Include="src\base\sfGlobals.h" />
     <ClInclude Include="src\common\m_assert.h" />
+    <ClInclude Include="vendor\Cougar\AlignedAllocator.h" />
+    <ClInclude Include="vendor\Cougar\FixedSizeAllocator.h" />
     <ClInclude Include="vendor\SFML\Audio.hpp" />
     <ClInclude Include="vendor\SFML\Audio\AlResource.hpp" />
     <ClInclude Include="vendor\SFML\Audio\Export.hpp" />

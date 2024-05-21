@@ -2,7 +2,7 @@
 #include <cmath>
 #include "vendor/SFML/Graphics.hpp"
 
-#define PI 3.14159265358979f
+#define PI 3.14159265358979l
 
 namespace helpers
 {

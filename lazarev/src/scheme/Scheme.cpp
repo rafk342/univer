@@ -112,8 +112,8 @@ bool Contact::SendSignal_ToDestinationContacts(bool signal)
 	
 	if (signal == false)
 		return false;
-
-	std::list<bool> results;
+	
+	std::list<bool, hmcgr::StackFirstFitAllocator<bool, 200>> results;
 
 	for (auto dest : destinations)
 	{
@@ -151,6 +151,7 @@ bool Contact::SendSignal_ToDestinationContacts(bool signal)
 	
 	return std::ranges::any_of(results, [](bool val) { return val == true; });
 }
+
 
 void Contact::PushContactAsDestination(Contact* contact)
 {
@@ -260,9 +261,6 @@ void PathSegment::ResetSegment()
 
 bool PathSegment::SendSignalThroughItself(PathSegmentContact* sender, bool signal)
 {
-	//if (m_name == "s1_15_6_output" || m_name == "s2_5_1")
-	//	return true;
-	//
 	if (isOutputSegment && signal)
 	{
 		isActiveOnThisFrame = signal;
@@ -275,10 +273,11 @@ bool PathSegment::SendSignalThroughItself(PathSegmentContact* sender, bool signa
 
 	isActiveOnThisFrame = signal;
 
-	if (signal)
+	if (isActiveOnThisFrame)
 		m_sprite.setColor(sf::Color(200, 0, 0, 255));
 	else
 		m_sprite.setColor(sf::Color(0, 0, 0, 255));
+
 
 	if (sender == &m_Contacts[0])
 	{
@@ -331,7 +330,7 @@ bool RelayCoil::SendSignalThroughItself(CoilContact* sender, bool signal)
 {
 	isActiveOnThisFrame = signal;
 
-	if (signal)
+	if (isActiveOnThisFrame)
 		m_sprite.setColor(sf::Color(255, 0, 0, 255));
 	else
 		m_sprite.setColor(sf::Color(0, 0, 0, 255));
@@ -344,7 +343,6 @@ bool RelayCoil::SendSignalThroughItself(CoilContact* sender, bool signal)
 	{
 		return m_Contacts[0].SendSignal_ToDestinationContacts(signal);
 	}
-
 }
 
 
@@ -421,15 +419,18 @@ RelayContactsGroup::RelayContactsGroup(sf::Vector2f n11_pos, Relay* relay, bool 
 
 void RelayContactsGroup::ManageSpriteState()
 {
-	auto state = self_relay->GetRelayState();
-
-	if (state == n11_n12)
+	switch (self_relay->GetRelayState())
 	{
+	case n11_n12:
 		m_sprite.setTextureRect({ 0,80, 82, 6 });
-	}
-	if (state == n11_n13)
-	{
+		break;
+
+	case n11_n13:
 		m_sprite.setTextureRect({ 0,107, 90, 32 });
+		break;
+
+	default:
+		break;
 	}
 }
 
@@ -557,13 +558,9 @@ SchemeSegments::SchemeSegments()
 		
 		if (m_PathSegments.back()->getName() == "s2_5_1")
 			m_PathSegments.back()->MarkSegmentAsOutput();
-	
 	}
 
-
-
 #define make_group(name, ...) {name, new RelayContactsGroup(__VA_ARGS__)} 
-
 
 	m_ContactGroupsMap =
 	{
@@ -796,7 +793,6 @@ SchemeSegments::SchemeSegments()
 
 	}
 
-
 	r_ChPZ.GetCoil()->setLeftContactPos({ 1310, 1692 });
 	r_ChPZ.GetCoil()->setGroupToCheck(m_ContactGroupsMap.at(s2_c_CHPZ));
 	r_Ch1M.GetCoil()->setLeftContactPos({1588, 1277});
@@ -833,8 +829,6 @@ void SchemeSegments::ResetConactGroups()
 
 void SchemeSegments::DrawSegments()
 {
-	m_Station.Update();
-
 	RenderRequests::InvokeWidgetUpdate([this]
 		{
 			if (m_PathSegments.empty())
@@ -861,9 +855,14 @@ void SchemeSegments::DrawSegments()
 
 void SchemeSegments::SendSignalFromEntry() 
 {
-	s2_entry_segment->SendSignalThroughItself(s2_entry_segment->GetContact_1(), true); 
 	s1_entry_segment->SendSignalThroughItself(s1_entry_segment->GetContact_1(), true);
+	s2_entry_segment->SendSignalThroughItself(s2_entry_segment->GetContact_1(), true); 
 }
+
+Station& SchemeSegments::GetStation() { return m_Station; }
+
+
+
 
 
 Scheme::Scheme()
@@ -896,7 +895,72 @@ void Scheme::DrawScheme()
 	static ImageButton m_btn5(buttons_image_path);
 	static TwoStatesButton m_2StrBtn(buttons_image_path);
 	static TwoStatesButton m_4StrBtn(buttons_image_path);
+	
+	static sf::Text m_text1(L"ЧБС", m_SFMLRenderer.get_font(), 35);
+	static sf::Text m_text2(L"ЧИП", m_SFMLRenderer.get_font(), 35);
+	static sf::Text m_text3(L"ЧДП", m_SFMLRenderer.get_font(), 35);
+	static sf::Text m_text4(L"2-4 СП", m_SFMLRenderer.get_font(), 35);
+	static sf::Text m_text5(L"�1�", m_SFMLRenderer.get_font(), 35);
+	static sf::Text m_text6(L"Стрелка 2", m_SFMLRenderer.get_font(), 35);
+	static sf::Text m_text7(L"Стрелка 4", m_SFMLRenderer.get_font(), 35);
+	
+	Text_SetColPos(m_text1, { 210, 1280 });
+	Text_SetColPos(m_text2, { 210, 1360 });
+	Text_SetColPos(m_text3, { 210, 1440 });
+	Text_SetColPos(m_text4, { 210, 1520 });
+	Text_SetColPos(m_text5, { 210, 1600 });
+	Text_SetColPos(m_text6, { 210, 1680 });
+	Text_SetColPos(m_text7, { 210, 1760 });
+	
+	RenderRequests::InvokeWidgetUpdate([]
+		{
+			//RenderRequests::getWindow()->draw(m_text);
+			RenderRequests::getWindow()->draw(m_text1);
+			RenderRequests::getWindow()->draw(m_text2);
+			RenderRequests::getWindow()->draw(m_text3);
+			RenderRequests::getWindow()->draw(m_text4);
+			//RenderRequests::getWindow()->draw(m_text5);
+			RenderRequests::getWindow()->draw(m_text6);
+			RenderRequests::getWindow()->draw(m_text7);
+		});
 
+
+	if (!init)
+	{
+		m_btn.SetPosition({ 150, 1200 });
+		m_btn.SetInactiveImageRectSprite({ 6,3,54,50 });
+		m_btn.SetActiveImageRectSprite({ 262,3,54,50 });
+
+		chbs_btn.SetPosition({ 150, 1280 });
+		chbs_btn.SetInactiveImageRectSprite({ 6,3,54,50 });
+		chbs_btn.SetActiveImageRectSprite({ 262,3,54,50 });
+
+		m_btn2.SetPosition({ 150, 1360 });
+		m_btn2.SetInactiveImageRectSprite({ 6,3,54,50 });
+		m_btn2.SetActiveImageRectSprite({ 262,3,54,50 });
+
+		m_btn3.SetPosition({ 150, 1440 });
+		m_btn3.SetInactiveImageRectSprite({ 6,3,54,50 });
+		m_btn3.SetActiveImageRectSprite({ 262,3,54,50 });
+
+		m_btn4.SetPosition({ 150, 1520 });
+		m_btn4.SetInactiveImageRectSprite({ 6,3,54,50 });
+		m_btn4.SetActiveImageRectSprite({ 262,3,54,50 });
+
+		m_btn5.SetPosition({ 150, 1600 });
+		m_btn5.SetInactiveImageRectSprite({ 6,3,54,50 });
+		m_btn5.SetActiveImageRectSprite({ 262,3,54,50 });
+
+		m_4StrBtn.SetPosition({ 150, 1760 });
+		m_4StrBtn.SetFalseStateSpriteRect({ 6,67, 54,50 });
+		m_4StrBtn.SetTrueStateSpriteRect({ 6,131, 54,50 });
+
+		m_2StrBtn.SetPosition({ 150, 1680 });
+		m_2StrBtn.SetFalseStateSpriteRect({ 6,67, 54,50 });
+		m_2StrBtn.SetTrueStateSpriteRect({ 6,131, 54,50 });
+
+		init = true;
+	}
 
 	/*if (m_btn) 
 		coil_flag = !coil_flag;*/
@@ -923,49 +987,12 @@ void Scheme::DrawScheme()
 	m_SchemeSegments.ResetPathSegments();
 	m_SchemeSegments.ResetConactGroups();
 
+	m_SchemeSegments.GetStation().Update();
 
-	if (!init)
-	{
-		m_btn.SetPosition({ 150, 1200 });
-		m_btn.SetInactiveImageRectSprite({ 6,3,54,50 });
-		m_btn.SetActiveImageRectSprite({ 262,3,54,50 });
-
-		chbs_btn.SetPosition({ 150, 1280 });
-		chbs_btn.SetInactiveImageRectSprite({ 6,3,54,50 });
-		chbs_btn.SetActiveImageRectSprite({ 262,3,54,50 });
-
-		m_btn2.SetPosition({ 150, 1360 });
-		m_btn2.SetInactiveImageRectSprite({ 6,3,54,50 });
-		m_btn2.SetActiveImageRectSprite({ 262,3,54,50 });
-		
-		m_btn3.SetPosition({ 150, 1440 });
-		m_btn3.SetInactiveImageRectSprite({ 6,3,54,50 });
-		m_btn3.SetActiveImageRectSprite({ 262,3,54,50 });	
-		
-		m_btn4.SetPosition({ 150, 1520 });
-		m_btn4.SetInactiveImageRectSprite({ 6,3,54,50 });
-		m_btn4.SetActiveImageRectSprite({ 262,3,54,50 });
-		
-		m_btn5.SetPosition({ 150, 1600 });
-		m_btn5.SetInactiveImageRectSprite({ 6,3,54,50 });
-		m_btn5.SetActiveImageRectSprite({ 262,3,54,50 });	
-
-		m_4StrBtn.SetPosition({ 150, 1760 });
-		m_4StrBtn.SetFalseStateSpriteRect({ 6,67, 54,50 });
-		m_4StrBtn.SetTrueStateSpriteRect({6,131, 54,50});
-
-		m_2StrBtn.SetPosition({ 150, 1680 });
-		m_2StrBtn.SetFalseStateSpriteRect({ 6,67, 54,50 });
-		m_2StrBtn.SetTrueStateSpriteRect({ 6,131, 54,50 });
-
-		init = true;
-	}
-	
 	r_2PK.GetCoil()->SetState(!m_2StrBtn.getState());
 	r_2MK.GetCoil()->SetState(m_2StrBtn.getState());
 	r_4PK.GetCoil()->SetState(!m_4StrBtn.getState());
 	r_4MK.GetCoil()->SetState(m_4StrBtn.getState());
-
 
 	//r_Ch2M.GetCoil()->SetState(coil_flag);
 	r_ChBS.GetCoil()->SetState(coil_flag2);
@@ -973,53 +1000,10 @@ void Scheme::DrawScheme()
 	r_ChDP.GetCoil()->SetState(coil_flag4);
 	r_24SP.GetCoil()->SetState(coil_flag5);
 
-	
-	//r_Ch1M.GetCoil()->SetState(coil_flag6);
-
 	m_SchemeSegments.SendSignalFromEntry();
-	
-	//static sf::Text m_text("CH2M", m_SFMLRenderer.get_font(), 35);
-	
-	//static sf::Text m_text(L"�2�", m_SFMLRenderer.get_font(), 35);
-	//Text_SetColPos(m_text, { 210, 1200 });
-
-	static sf::Text m_text1(L"ЧБС", m_SFMLRenderer.get_font(), 35);
-	Text_SetColPos(m_text1, { 210, 1280 });
-
-	static sf::Text m_text2(L"ЧИП", m_SFMLRenderer.get_font(), 35);
-	Text_SetColPos(m_text2, { 210, 1360 });
-
-	static sf::Text m_text3(L"ЧДП", m_SFMLRenderer.get_font(), 35);
-	Text_SetColPos(m_text3, { 210, 1440 });
-	
-	static sf::Text m_text4(L"2-4 СП", m_SFMLRenderer.get_font(), 35);
-	Text_SetColPos(m_text4, { 210, 1520 });	
-	
-	static sf::Text m_text5(L"�1�", m_SFMLRenderer.get_font(), 35);
-	Text_SetColPos(m_text5, { 210, 1600 });
-
-	static sf::Text m_text6(L"Стрелка 2", m_SFMLRenderer.get_font(), 35);
-	Text_SetColPos(m_text6, { 210, 1680 });
-	
-	static sf::Text m_text7(L"Стрелка 4", m_SFMLRenderer.get_font(), 35);
-	Text_SetColPos(m_text7, { 210, 1760 });
 
 	m_SchemeSegments.DrawSegments();
 	m_Overlay.DrawOverlay();
-	
-
-	RenderRequests::InvokeWidgetUpdate([]
-		{
-			//RenderRequests::getWindow()->draw(m_text);
-			RenderRequests::getWindow()->draw(m_text1);
-			RenderRequests::getWindow()->draw(m_text2);
-			RenderRequests::getWindow()->draw(m_text3);
-			RenderRequests::getWindow()->draw(m_text4);
-			//RenderRequests::getWindow()->draw(m_text5);
-			RenderRequests::getWindow()->draw(m_text6);
-			RenderRequests::getWindow()->draw(m_text7);
-		});
-	
 	
 #if m_debug
 	std::cout << "\n\n\n\n";
@@ -1048,6 +1032,7 @@ Train::Train()
 {
 	m_texture.setSmooth(true);
 	SetPosition({ 325, 143 });
+	m_sprite.setOrigin(m_texture.getSize().x, m_texture.getSize().y/2);
 }
 
 
@@ -1058,13 +1043,35 @@ void Train::Draw()
 }
 
 
-void Train::SetPosition(const sf::Vector2f& pos)
+void Train::SetPosition(const sf::Vector2f& new_pos)
 {
 	auto texture_sz = m_texture.getSize();
-//	m_HeadPos = { pos.x - texture_sz.x , pos.y - texture_sz.y / 2 };
-	m_TailPos = { pos.x, pos.y - texture_sz.y / 2 };
-	m_HeadPos = { pos.x + texture_sz.x, pos.y - texture_sz.y / 2 };
-	m_sprite.setPosition(m_TailPos);
+
+	float rotationRad = m_sprite.getRotation() * (PI / 180.0);
+
+	float offsetX = -((float)m_texture.getSize().x);
+	float offsetY = 0;
+	float rotatedOffsetX = offsetX * cos(rotationRad) - offsetY * sin(rotationRad);
+	float rotatedOffsetY = offsetX * sin(rotationRad) + offsetY * cos(rotationRad);
+
+	m_TailPos = { new_pos.x - m_texture.getSize().x /*+ rotatedOffsetX*/, new_pos.y /*+ rotatedOffsetY */};
+	m_HeadPos = { new_pos.x , new_pos.y  };
+	
+	m_sprite.setPosition(new_pos);
+
+	static float rot = 0;
+
+	//if (sf::Keyboard::isKeyPressed(sf::Keyboard::A))
+	//	m_sprite.setRotation(rot += 1);
+	//
+	//if (sf::Keyboard::isKeyPressed(sf::Keyboard::D))
+	//	m_sprite.setRotation(rot -= 1);
+
+	//std::println("Head : {} {}", m_HeadPos.x, m_HeadPos.y);
+	//std::println("Tail : {} {}", m_TailPos.x, m_TailPos.y);
+	//std::println("Andgle : {}", helpers::angleBetweenPoints(m_TailPos, m_HeadPos));
+	//std::println("rot : {}", rot);
+
 }
 
 
@@ -1079,23 +1086,21 @@ void Train::FollowTheMouse(TrainRoute* route)
 
 	bool is_mouse_pressed_on_this_frame = sf::Mouse::isButtonPressed(sf::Mouse::Left);
 	static bool cought = false;
-	static sf::Vector2f offset;
-	static sf::Vector2f headOffset;
+	static sf::Vector2f mouse_offset;
 
-	
 	if (is_hovered() && is_mouse_pressed_on_this_frame && !cought)
 	{
 		cought = true;
-		offset = m_sprite.getPosition() - m_SFMLRenderer.get_world_mouse_position();
-		headOffset = offset;
-		headOffset.x += m_texture.getSize().x;
+		mouse_offset = m_sprite.getPosition() - m_SFMLRenderer.get_world_mouse_position();
 	}
 	else if (cought && is_mouse_pressed_on_this_frame)
 	{
-		sf::Vector2f targetHeadPos = route->GetTrainPos(m_HeadPos, headOffset);
-		targetHeadPos.x += offset.x;
+		sf::Vector2f targetHeadPos = route->GetTrainPos(m_sprite.getPosition(), mouse_offset);
+		targetHeadPos.x += mouse_offset.x;
 
 		SetPosition(targetHeadPos);
+		m_sprite.setRotation(route->GetTrainRot(m_HeadPos, m_TailPos));
+		std::println("{}", route->GetTrainRot(m_HeadPos, m_TailPos));
 	}
 	else if (!is_mouse_pressed_on_this_frame)
 	{
@@ -1110,7 +1115,7 @@ void Train::FollowTheMouse(TrainRoute* route)
 // 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-
+#if 1
 
 TrainRoute::TrainRoute(RouteName_e Route) 
 	: m_CurrentRoute(Route)
@@ -1125,12 +1130,13 @@ TrainRoute::TrainRoute(RouteName_e Route, std::initializer_list<sf::Vector2f> il
 	, m_BasePoints(il)
 { }
 
-
 void TrainRoute::SetupLerpPoints(std::initializer_list<sf::Vector2f> il) 
 {
 	m_BasePoints.clear(); 
 	m_BasePoints = il;
 }
+
+#endif
 
 std::pair<sf::Vector2f, sf::Vector2f> TrainRoute::GetRailwaySegment(sf::Vector2f pos) 
 {
@@ -1156,27 +1162,32 @@ std::pair<sf::Vector2f, sf::Vector2f> TrainRoute::GetRailwaySegment(sf::Vector2f
 	return points;
 }
 
-sf::Vector2f TrainRoute::GetTrainPos(sf::Vector2f train_head, sf::Vector2f offset)
+
+sf::Vector2f TrainRoute::GetTrainPos(sf::Vector2f train_head, sf::Vector2f mouse_offset)
 {
 	auto mouse_pos = m_SFMLRenderer.get_world_mouse_position();
 
-	std::pair<sf::Vector2f, sf::Vector2f> points;
-	bool found = false;
+	if (mouse_pos.x + mouse_offset.x < 325)
+		mouse_pos.x = 325 - mouse_offset.x;
 
-	if (mouse_pos.x + offset.x < 325)
-		mouse_pos.x = 325 - offset.x;
+	if (mouse_pos.x + mouse_offset.x > 1742)
+		mouse_pos.x = 1742 - mouse_offset.x;
+	
+	auto current_segment = GetRailwaySegment(train_head);
 
-	if (mouse_pos.x + offset.x > 1742) {
-		mouse_pos.x = 1742 - offset.x;
-	}
-
-	points = GetRailwaySegment(train_head);
-
-	float mid_y_point = std::lerp(points.first.y, points.second.y, helpers::NormalizeValue(points.first.x, points.second.x, train_head.x));
+	float mid_y_point = std::lerp(current_segment.first.y, current_segment.second.y, helpers::NormalizeValue(current_segment.first.x, current_segment.second.x, train_head.x));
 
 	SM_ASSERT(!std::isnan(mid_y_point), "Lerp returned nan");
 
 	return {mouse_pos.x, mid_y_point};
+}
+
+float TrainRoute::GetTrainRot(sf::Vector2f train_head, sf::Vector2f train_tail)
+{
+	auto current_segment = GetRailwaySegment(train_head);
+	float mid_y_point = std::lerp(current_segment.first.y, current_segment.second.y, helpers::NormalizeValue(current_segment.first.x, current_segment.second.x, train_tail.x));
+	std::cout << " mid point  : " << mid_y_point << std::endl;
+	return helpers::angleBetweenPoints({ train_tail.x, mid_y_point }, train_head);
 }
 
 
@@ -1190,6 +1201,7 @@ sf::Vector2f TrainRoute::GetTrainPos(sf::Vector2f train_head, sf::Vector2f offse
 void Station::Update()
 {
 	m_Train.FollowTheMouse(&m_Routes[2]);
+
 }
 
 
