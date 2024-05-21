@@ -14,11 +14,11 @@ sf::Vector2f PathSegment::SegmentsGlobImageOffset(35, 380);
 
 const char* buttons_image_path				= "assets\\buttons.png";
 const char* relay_parts_path				= "assets\\relay_parts.png";
-const char* train_pic_path					= "assets\\train.png";
+const char* train_pic_path					= "assets\\train4.png";
 const char* very_important_data_file_path	= "assets\\SomeVeryImportantData.txt";
 const char* scheme_segments_path			= "assets\\SchemeSegments2";
 const char* overlay_path					= "assets\\scheme_overlay.png";
-const char* station_pic_path				= "assets\\station.png";
+const char* station_pic_path				= "assets\\station2.png";
 
 
 Relay r_ChGS("r_ChGS");
@@ -1031,47 +1031,23 @@ Train::Train()
 	: WidgetsBase(train_pic_path)
 {
 	m_texture.setSmooth(true);
-	SetPosition({ 325, 143 });
-	m_sprite.setOrigin(m_texture.getSize().x, m_texture.getSize().y/2);
+	SetPosition({ 500, 143 });
+	m_sprite.setOrigin(m_texture.getSize().x, m_texture.getSize().y );
 }
 
 
 void Train::Draw()
 {
-	UpdateHeadAndTailPos();
 	RenderRequests::getWindow()->draw(m_sprite);
 }
 
 
 void Train::SetPosition(const sf::Vector2f& new_pos)
 {
-	auto texture_sz = m_texture.getSize();
-
-	float rotationRad = m_sprite.getRotation() * (PI / 180.0);
-
-	float offsetX = -((float)m_texture.getSize().x);
-	float offsetY = 0;
-	float rotatedOffsetX = offsetX * cos(rotationRad) - offsetY * sin(rotationRad);
-	float rotatedOffsetY = offsetX * sin(rotationRad) + offsetY * cos(rotationRad);
-
-	m_TailPos = { new_pos.x - m_texture.getSize().x /*+ rotatedOffsetX*/, new_pos.y /*+ rotatedOffsetY */};
+	m_TailPos = { new_pos.x - m_sprite.getGlobalBounds().getSize().x, new_pos.y };
 	m_HeadPos = { new_pos.x , new_pos.y  };
 	
 	m_sprite.setPosition(new_pos);
-
-	static float rot = 0;
-
-	//if (sf::Keyboard::isKeyPressed(sf::Keyboard::A))
-	//	m_sprite.setRotation(rot += 1);
-	//
-	//if (sf::Keyboard::isKeyPressed(sf::Keyboard::D))
-	//	m_sprite.setRotation(rot -= 1);
-
-	//std::println("Head : {} {}", m_HeadPos.x, m_HeadPos.y);
-	//std::println("Tail : {} {}", m_TailPos.x, m_TailPos.y);
-	//std::println("Andgle : {}", helpers::angleBetweenPoints(m_TailPos, m_HeadPos));
-	//std::println("rot : {}", rot);
-
 }
 
 
@@ -1097,10 +1073,17 @@ void Train::FollowTheMouse(TrainRoute* route)
 	{
 		sf::Vector2f targetHeadPos = route->GetTrainPos(m_sprite.getPosition(), mouse_offset);
 		targetHeadPos.x += mouse_offset.x;
-
 		SetPosition(targetHeadPos);
 		m_sprite.setRotation(route->GetTrainRot(m_HeadPos, m_TailPos));
-		std::println("{}", route->GetTrainRot(m_HeadPos, m_TailPos));
+
+		float rotationRad = m_sprite.getRotation() * (PI / 180.0);
+		float offsetX = -((float)m_texture.getSize().x);
+		float offsetY = 0;
+		float rotatedOffsetX = offsetX * cos(rotationRad) - offsetY * sin(rotationRad);
+		float rotatedOffsetY = offsetX * sin(rotationRad) + offsetY * cos(rotationRad);
+
+		m_TailPos = { m_sprite.getPosition().x - +rotatedOffsetX, m_sprite.getPosition().y + rotatedOffsetY};
+
 	}
 	else if (!is_mouse_pressed_on_this_frame)
 	{
@@ -1167,11 +1150,11 @@ sf::Vector2f TrainRoute::GetTrainPos(sf::Vector2f train_head, sf::Vector2f mouse
 {
 	auto mouse_pos = m_SFMLRenderer.get_world_mouse_position();
 
-	if (mouse_pos.x + mouse_offset.x < 325)
-		mouse_pos.x = 325 - mouse_offset.x;
+	if (mouse_pos.x + mouse_offset.x < 257)
+		mouse_pos.x = 257 - mouse_offset.x;
 
-	if (mouse_pos.x + mouse_offset.x > 1742)
-		mouse_pos.x = 1742 - mouse_offset.x;
+	if (mouse_pos.x + mouse_offset.x > 1978)
+		mouse_pos.x = 1978 - mouse_offset.x;
 	
 	auto current_segment = GetRailwaySegment(train_head);
 
@@ -1184,9 +1167,10 @@ sf::Vector2f TrainRoute::GetTrainPos(sf::Vector2f train_head, sf::Vector2f mouse
 
 float TrainRoute::GetTrainRot(sf::Vector2f train_head, sf::Vector2f train_tail)
 {
-	auto current_segment = GetRailwaySegment(train_head);
+	auto current_segment = GetRailwaySegment(train_tail);
 	float mid_y_point = std::lerp(current_segment.first.y, current_segment.second.y, helpers::NormalizeValue(current_segment.first.x, current_segment.second.x, train_tail.x));
-	std::cout << " mid point  : " << mid_y_point << std::endl;
+	SM_ASSERT(!std::isnan(mid_y_point), "Lerp returned nan");
+
 	return helpers::angleBetweenPoints({ train_tail.x, mid_y_point }, train_head);
 }
 
@@ -1210,24 +1194,24 @@ Station::Station()
 	, m_Routes {
 		{ At_1_line,
 			{
-				{325, 143},
-				{1043, 143},
-				{1160, 73},
-				{1742, 73},
+				{78, 262},
+				{1140, 262},
+				{1270, 181},
+				{1989, 181},
 			}
 		},
 		{ At_2_line,
 			{
-				{325, 143},
-				{1742, 143},
+				{78, 262},
+				{1989, 262},
 			}
 		},
 		{ At_4_line,
 			{
-				{325, 143},
-				{1137,143},
-				{1246, 211},
-				{1742, 211},
+				{78, 262},
+				{1245, 262},
+				{1371, 343},
+				{1989, 343},
 			}
 		},
 	}
