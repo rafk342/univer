@@ -1,6 +1,6 @@
 #include "RenderRequests.h"
 
-std::vector<std::function<void()>> RenderRequests::Tasks;
+std::deque<std::function<void()>> RenderRequests::Tasks;
 
 sf::RenderWindow* RenderRequests::getWindow()
 {

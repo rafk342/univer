@@ -1,4 +1,6 @@
 #include "ImageButton.h"
+#include "base/RenderRequests.h"
+
 
 bool ImageButton::ButtonBehavior()
 {
@@ -70,6 +72,18 @@ void ImageButton::SetUnhoveredTint(sf::Color col)
     unhovered_color = col;
 }
 
+void ImageButton::SetId(int v)
+{
+    id = v;
+}
+
+int ImageButton::GetId()
+{
+    return id;
+}
+
+ImageButton::operator bool() { return ButtonBehavior(); }
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -130,6 +144,9 @@ bool TwoStatesButton::ButtonBehavior()
     return false;
 }
 
+TwoStatesButton::operator bool() { return ButtonBehavior(); }
+bool TwoStatesButton::getState() { return m_current_state; }
+
 void TwoStatesButton::SetTrueStateSpriteRect(const sf::IntRect& rect)
 {
     SetActiveImageRectSprite(rect);
@@ -153,6 +170,11 @@ void TwoStatesButton::unlock()
 bool TwoStatesButton::isLocked()
 {
     return m_lock;
+}
+
+bool TwoStatesButton::SetState(bool state)
+{
+    return m_current_state = state;
 }
 
 

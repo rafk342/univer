@@ -1,6 +1,5 @@
 #include "SFMLRenderer.h"
-
-#include "Windows.h"
+#include "base/RenderRequests.h"
 
 SFMLRenderer* SFMLRenderer::self = nullptr;
 
@@ -134,13 +133,13 @@ void SFMLRenderer::handleEvents()
 
 
 sf::Event*			SFMLRenderer::get_sfEvents()	{ return &m_event;}
-sf::Vector2f		SFMLRenderer::get_delta_mouse() { return delta_mouse; }
 sf::View*			SFMLRenderer::get_sfView()		{ return &m_view;}
 sf::RenderWindow*	SFMLRenderer::get_sfWindow()	{ return m_Window.get();}
 sf::Font&			SFMLRenderer::get_font()		{ return m_font;}
-sf::Vector2f		SFMLRenderer::get_world_delta_mouse() { return delta_mouse_in_world; }
+sf::Vector2f		SFMLRenderer::GetDeltaMouse()	{ return delta_mouse; }
+sf::Vector2f		SFMLRenderer::GetWorldDeltaMouse() { return delta_mouse_in_world; }
 
-sf::Vector2f SFMLRenderer::get_world_mouse_position()
+sf::Vector2f SFMLRenderer::GetWorldMousePos()
 {
 	return m_Window->mapPixelToCoords(sf::Mouse::getPosition(*m_SFMLRenderer.get_sfWindow()), *m_SFMLRenderer.get_sfView());
 }

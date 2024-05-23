@@ -1,5 +1,6 @@
 #pragma once
 
+#include <deque>
 #include <functional>
 
 #include "base/SFMLRenderer.h"
@@ -8,7 +9,7 @@
 
 class RenderRequests
 {
-    static std::vector<std::function<void()>> Tasks;
+    static std::deque<std::function<void()>> Tasks;
 public:
 
     static sf::RenderWindow* getWindow();

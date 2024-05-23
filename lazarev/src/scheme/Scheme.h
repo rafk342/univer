@@ -6,14 +6,14 @@
 #include <ranges>
 #include <fstream>
 #include <list>
+#include <ctime>
 
 #include "Cougar/FixedSizeAllocator.h"
 
-#include "Widgets/ImageButton.h"
 #include "base/WidgetsBase.h"
-#include "base/RenderRequests.h"
 #include "helpers/Helpers.h"
-
+#include "base/SimpleTimer.h"
+#include "src/Widgets/ImageButton.h"
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -29,6 +29,9 @@ class SchemeOverlay;
 class RelayCoil;
 class Relay;
 class RelayContactsGroup;
+
+class TwoStatesButton;
+
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -111,6 +114,25 @@ enum ContactsGroupName_e
 	s2_c_CHPZ,
 };
 
+enum RouteName_e
+{
+	At_1_line,
+	At_2_line,
+	At_4_line,
+};
+
+
+enum StationSegments_e
+{
+	s_None = 0,
+	s_Chip = 1,
+	s_Chdp = 2,
+	s_2_4_SP = 3,
+	s_1p = 4,
+	s_2p = 5,
+	s_4p = 6,
+};
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //									Classes
@@ -187,8 +209,6 @@ public:
 
 
 
-
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //									Scheme Segments
 // 
@@ -252,7 +272,7 @@ public:
 	void SetState(bool state);
 	void DrawCoil();
 	void setLeftContactPos(sf::Vector2f point);
-
+	bool PrevFrameState();
 	void setGroupToCheck(RelayContactsGroup* group);
 };
 
@@ -304,33 +324,29 @@ public:
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//									Scheme
+//									Station
 // 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-enum RouteName_e
-{
-	At_1_line,
-	At_2_line,
-	At_4_line,
-};
 
 
 class TrainRoute
 {
-	RouteName_e m_CurrentRoute = At_1_line;
-	std::vector<sf::Vector2f> m_BasePoints; // interpolation points
+
+	RouteName_e					m_ThisRouteType = At_1_line;
+	std::vector<sf::Vector2f>	m_BasePoints; // interpolation points
+	
+	auto GetLerpPointsBasedOnTrainPos(sf::Vector2f train_pos) -> std::pair<sf::Vector2f, sf::Vector2f>;
 
 public:
 
 	TrainRoute(RouteName_e Route);
 	TrainRoute(std::initializer_list<sf::Vector2f> il);
 	TrainRoute(RouteName_e Route, std::initializer_list<sf::Vector2f> il);
-	void SetupLerpPoints(std::initializer_list<sf::Vector2f> il);
-	sf::Vector2f GetTrainPos(sf::Vector2f train_head, sf::Vector2f offset);
-	float GetTrainRot(sf::Vector2f train_head, sf::Vector2f train_tail);
-
-	std::pair<sf::Vector2f, sf::Vector2f> GetRailwaySegment(sf::Vector2f pos);
+	
+	void			SetupLerpPoints(std::initializer_list<sf::Vector2f> il);
+	sf::Vector2f	GetTrainPos(sf::Vector2f train_head, sf::Vector2f offset);
+	float			GetTrainRot(sf::Vector2f train_head, sf::Vector2f train_tail);
 
 };
 
@@ -340,37 +356,64 @@ class Train : public WidgetsBase
 	sf::Vector2f m_HeadPos{};
 	sf::Vector2f m_TailPos{};
 
-	void UpdateHeadAndTailPos();
-
 public:
 
 	Train();
-	void Draw();
-	void SetPosition(const sf::Vector2f& new_pos);
-	sf::Vector2f GetHeadPos();
-	sf::Vector2f GetTailPos();
-
-	void FollowTheMouse(TrainRoute* route);
+	
+	void			Draw();
+	void			SetPosition(const sf::Vector2f& new_pos);
+	sf::Vector2f	GetHeadPos();
+	sf::Vector2f	GetTailPos();
+	void			FollowTheMouse(TrainRoute* route);
+	void			ResetPosition();
 
 };
 
 
 class Station : public WidgetsBase
 {
-	TrainRoute m_Routes[3];
-	Train	   m_Train;
+	TrainRoute  m_Routes[3];
+	Train	    m_Train;
+	RouteName_e m_CurrentRoute = At_1_line;
+	RouteName_e m_RequestedRoute = At_1_line;
+	
+	//		segment            ->			left / right coord
+	std::map<StationSegments_e, std::pair<sf::Vector2f, sf::Vector2f>> m_StationSegments;
 
-	bool train_should_be_drawn = true;
+	TwoStatesButton m_2StrButton;
+	TwoStatesButton m_4StrButton;
+	
+	TwoStatesButton m_1_RouteButton;
+	TwoStatesButton m_2_RouteButton;
+	TwoStatesButton m_4_RouteButton;
+	ImageButton		m_RouteUnlockButton;
+
+	std::array<TwoStatesButton*, 3> RouteButtons;
+
+	bool m_RequestTheForRouteUnlock = false;
+	bool m_IsRouteLocked = false;
+
+	auto GetCurrentTrainLocation() -> std::pair<StationSegments_e, StationSegments_e>;  // returns current segments for Head and tail positions
+	bool VerifySafetyConditions_ForRequestedRoute(RouteName_e RequestedRoute);
+	bool VerifyIfRouteCanBeUnlocked();
+	void UnlockTheCurrentRoute();
 
 public:
-	void Update();
 
 	Station();
+	void Update_1Stage();
+	void Update_2Stage();
 	void Draw();
+	Train& GetTrain();
 
 };
 
 
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//									Scheme
+// 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
 

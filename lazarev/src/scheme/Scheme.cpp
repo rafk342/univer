@@ -1,6 +1,6 @@
 ﻿
-#include "Widgets/ImageButton.h"
 #include "Scheme.h"
+#include "base/RenderRequests.h"
 
 #define m_debug 0
 
@@ -12,13 +12,23 @@ sf::Vector2f PathSegment::SegmentsGlobImageOffset(35, 380);
 // 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const char* buttons_image_path				= "assets\\buttons.png";
-const char* relay_parts_path				= "assets\\relay_parts.png";
-const char* train_pic_path					= "assets\\train4.png";
-const char* very_important_data_file_path	= "assets\\SomeVeryImportantData.txt";
-const char* scheme_segments_path			= "assets\\SchemeSegments2";
-const char* overlay_path					= "assets\\scheme_overlay.png";
-const char* station_pic_path				= "assets\\station2.png";
+namespace
+{
+	const char* buttons_image_path				= "assets\\buttons.png";
+	const char* relay_parts_path				= "assets\\relay_parts.png";
+	const char* train_pic_path					= "assets\\train4.png";
+	const char* very_important_data_file_path	= "assets\\SomeVeryImportantData.txt";
+	const char* scheme_segments_path			= "assets\\SchemeSegments2";
+	const char* overlay_path					= "assets\\scheme_overlay.png";
+	const char* station_pic_path				= "assets\\station2.png";
+
+	int DefaultTrain_X_AxisLimit_LeftSide = 257;
+	int DefaultTrain_X_AxisLimit_RightSide = 1978;
+
+	int TrainLimit_on_X_axis_LeftSide = 257;
+	int TrainLimit_on_X_axis_RightSide = 1978;
+}
+
 
 
 Relay r_ChGS("r_ChGS");
@@ -83,6 +93,12 @@ Relay* FindRelayByName(const std::string& name)
 		});
 
 	return it == m_RelaysArray.end() ? nullptr : (*it);
+}
+
+void Text_SetColAndPos(sf::Text& text, sf::Vector2f pos)
+{
+	text.setFillColor(sf::Color::Black);
+	text.setPosition(pos);
 }
 
 
@@ -328,6 +344,7 @@ RelayCoil::RelayCoil()
 
 bool RelayCoil::SendSignalThroughItself(CoilContact* sender, bool signal)
 {
+	wasActiveOnPrevFrame = isActiveOnThisFrame;
 	isActiveOnThisFrame = signal;
 
 	if (isActiveOnThisFrame)
@@ -363,7 +380,8 @@ void RelayCoil::ResetCoil()
 
 void RelayCoil::setLeftContactPos(sf::Vector2f point)
 {
-	point.y -= 73/2;
+	
+	point.y -= m_sprite.getTextureRect().height / 2;
 	SetPosition(point);
 }
 
@@ -382,6 +400,7 @@ void			RelayCoil::SetState(bool state)		{ isActiveOnThisFrame = state; }
 CoilContact*	RelayCoil::GetContact_1()			{ return &m_Contacts[0]; }
 CoilContact*	RelayCoil::GetContact_2()			{ return &m_Contacts[1]; }
 void			RelayCoil::setGroupToCheck(RelayContactsGroup* group) { groupToCheck = group; }
+bool			RelayCoil::PrevFrameState()			{ return wasActiveOnPrevFrame; }
 
 
 
@@ -510,8 +529,489 @@ RelayCoil*		Relay::GetCoil()		{ return &m_Coil; }
 const char*		Relay::GetName()		{ return m_name; }
 
 
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//									Scheme 
+//									Train 
+// 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+Train::Train()
+	: WidgetsBase(train_pic_path)
+{
+	m_texture.setSmooth(true);
+	SetPosition({ 277, 262 });
+	m_sprite.setOrigin(m_texture.getSize().x, m_texture.getSize().y/2 );
+}
+
+
+void Train::Draw()
+{
+	RenderRequests::getWindow()->draw(m_sprite);
+}
+
+
+void Train::SetPosition(const sf::Vector2f& new_pos)
+{
+	m_HeadPos = { new_pos.x , new_pos.y  };
+	m_sprite.setPosition(new_pos);
+}
+
+
+void Train::FollowTheMouse(TrainRoute* route)
+{
+	if (!m_SFMLRenderer.get_sfWindow()->hasFocus())
+		return;
+
+	bool is_mouse_pressed_on_this_frame = sf::Mouse::isButtonPressed(sf::Mouse::Left);
+	static bool cought = false;
+	static sf::Vector2f mouse_offset;
+
+	if (is_hovered() && is_mouse_pressed_on_this_frame && !cought)
+	{
+		cought = true;
+		mouse_offset = m_sprite.getPosition() - m_SFMLRenderer.GetWorldMousePos();
+	}
+	else if (cought && is_mouse_pressed_on_this_frame)
+	{
+		sf::Vector2f targetHeadPos = route->GetTrainPos(m_sprite.getPosition(), mouse_offset);
+		targetHeadPos.x += mouse_offset.x;
+		SetPosition(targetHeadPos);
+		m_sprite.setRotation(route->GetTrainRot(m_HeadPos, m_sprite.getPosition() - m_sprite.getGlobalBounds().getSize()));
+
+		float rotationRad = m_sprite.getRotation() * (PI / 180.0);
+		float offsetX = -((float)m_texture.getSize().x);
+		float offsetY = 0;
+		float rotatedOffsetX = offsetX * cos(rotationRad) - offsetY * sin(rotationRad);
+		float rotatedOffsetY = offsetX * sin(rotationRad) + offsetY * cos(rotationRad);
+
+		m_TailPos = { m_sprite.getPosition().x + rotatedOffsetX, m_sprite.getPosition().y + rotatedOffsetY};
+	}
+	else if (!is_mouse_pressed_on_this_frame)
+	{
+		cought = false;
+	}
+}
+
+
+sf::Vector2f	Train::GetHeadPos() { return m_HeadPos; }
+sf::Vector2f	Train::GetTailPos() { return m_TailPos; }
+void			Train::ResetPosition() { SetPosition({ 277, 262 }); }
+
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//									Route 
+// 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#if 1
+
+TrainRoute::TrainRoute(RouteName_e Route) 
+	: m_ThisRouteType(Route)
+{ }
+
+TrainRoute::TrainRoute(std::initializer_list<sf::Vector2f> il) 
+	: m_BasePoints(il) 
+{ }
+
+TrainRoute::TrainRoute(RouteName_e Route, std::initializer_list<sf::Vector2f> il) 
+	: m_ThisRouteType(Route)
+	, m_BasePoints(il)
+{ }
+
+void TrainRoute::SetupLerpPoints(std::initializer_list<sf::Vector2f> il) 
+{
+	m_BasePoints.clear(); 
+	m_BasePoints = il;
+}
+
+#endif
+
+std::pair<sf::Vector2f, sf::Vector2f> TrainRoute::GetLerpPointsBasedOnTrainPos(sf::Vector2f pos) 
+{
+	std::pair<sf::Vector2f, sf::Vector2f> points{};
+
+	for (size_t i = 0; i < m_BasePoints.size() - 1; ++i)
+	{
+		const sf::Vector2f& pointA = m_BasePoints[i];
+		const sf::Vector2f& pointB = m_BasePoints[i + 1];
+
+		if (pointB.x >= pos.x && pointA.x <= pos.x)
+		{
+			points = { pointA, pointB };
+			break;
+		}
+	}
+	
+	return points;
+}
+
+
+sf::Vector2f TrainRoute::GetTrainPos(sf::Vector2f train_head, sf::Vector2f mouse_offset)
+{
+	auto mouse_pos = m_SFMLRenderer.GetWorldMousePos();
+
+	if (mouse_pos.x + mouse_offset.x < TrainLimit_on_X_axis_LeftSide)
+		mouse_pos.x = TrainLimit_on_X_axis_LeftSide - mouse_offset.x; 
+
+	if (mouse_pos.x + mouse_offset.x > TrainLimit_on_X_axis_RightSide)
+		mouse_pos.x = TrainLimit_on_X_axis_RightSide - mouse_offset.x;
+	
+	//TrainLimit_on_X_axis_LeftSide = mouse_pos.x + mouse_offset.x;
+
+	auto current_segment = GetLerpPointsBasedOnTrainPos(train_head);
+	float mid_y_point = std::lerp(current_segment.first.y, current_segment.second.y, helpers::NormalizeValue(current_segment.first.x, current_segment.second.x, train_head.x));
+	SM_ASSERT(!std::isnan(mid_y_point), "TrainRoute::GetTrainPos -> Lerp returned nan");
+
+	return {mouse_pos.x, mid_y_point};
+}
+
+float TrainRoute::GetTrainRot(sf::Vector2f train_head, sf::Vector2f train_tail)
+{
+	auto current_segment = GetLerpPointsBasedOnTrainPos(train_tail);
+	float mid_y_point = std::lerp(current_segment.first.y, current_segment.second.y, helpers::NormalizeValue(current_segment.first.x, current_segment.second.x, train_tail.x));
+	SM_ASSERT(!std::isnan(mid_y_point), "TrainRoute::GetTrainRot -> Lerp returned nan");
+
+	return helpers::angleBetweenPoints({ train_tail.x, mid_y_point }, train_head);
+}
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//									Station 
+// 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+Station::Station()
+	: WidgetsBase(station_pic_path)
+	, m_Routes{
+		{ At_1_line,
+			{
+				{78, 262},
+				{1140, 262},
+				{1270, 181},
+				{1989, 181},
+			}
+		},
+		{ At_2_line,
+			{
+				{78, 262},
+				{1989, 262},
+			}
+		},
+		{ At_4_line,
+			{
+				{78, 262},
+				{1245, 262},
+				{1371, 343},
+				{1989, 343},
+			}
+		},
+	}
+	, m_StationSegments {
+		{ s_None, {{58, 262},{315, 262}}},
+		{ s_Chip, {{315, 262},{655, 262}}},
+		{ s_Chdp, {{655, 262},{963, 262}}},
+		{ s_2_4_SP, {{963, 170},{1449, 355}}},
+		{ s_1p, {{1449, 181},{2020, 181}}},
+		{ s_2p, {{1449, 262},{2020, 262}}},
+		{ s_4p, {{1449, 343},{2020, 343}}}, 
+	}
+	, m_2StrButton(buttons_image_path)
+	, m_4StrButton(buttons_image_path)
+	, m_1_RouteButton(buttons_image_path)
+	, m_2_RouteButton(buttons_image_path)
+	, m_4_RouteButton(buttons_image_path)
+	, m_RouteUnlockButton(buttons_image_path)
+	, RouteButtons
+	{ 
+		&m_1_RouteButton, 
+		&m_2_RouteButton, 
+		&m_4_RouteButton 
+	}
+{
+	m_texture.setSmooth(true);
+	
+	m_2StrButton.SetPosition({ 2030, 520 });
+	m_2StrButton.SetFalseStateSpriteRect({ 6,67, 54,50 });
+	m_2StrButton.SetTrueStateSpriteRect({ 6,131, 54,50 });
+
+	m_4StrButton.SetPosition({ 2030, 590 });
+	m_4StrButton.SetFalseStateSpriteRect({ 6,67, 54,50 });
+	m_4StrButton.SetTrueStateSpriteRect({ 6,131, 54,50 });
+	
+	m_1_RouteButton.SetPosition({ 2030, 730 });
+	m_1_RouteButton.SetFalseStateSpriteRect({ 6,3,  54,50 });
+	m_1_RouteButton.SetTrueStateSpriteRect({ 198,3,  54,50 });
+	m_1_RouteButton.SetId(At_1_line);
+
+	m_2_RouteButton.SetPosition({ 2030, 800 });
+	m_2_RouteButton.SetFalseStateSpriteRect({ 6,3, 54,50 });
+	m_2_RouteButton.SetTrueStateSpriteRect({ 198,3, 54,50 });
+	m_2_RouteButton.SetId(At_2_line);
+
+	m_4_RouteButton.SetPosition({ 2030, 870 });
+	m_4_RouteButton.SetFalseStateSpriteRect({ 6,3, 54,50 });
+	m_4_RouteButton.SetTrueStateSpriteRect({ 198,3, 54,50 });
+	m_4_RouteButton.SetId(At_4_line);
+
+	m_RouteUnlockButton.SetPosition({ 2030, 940 });
+	m_RouteUnlockButton.SetInactiveImageRectSprite({ 6,3,54,50 });
+	m_RouteUnlockButton.SetActiveImageRectSprite({ 262,3,54,50 });
+}
+
+
+
+//					Head / tail
+std::pair<StationSegments_e, StationSegments_e> Station::GetCurrentTrainLocation()
+{
+	std::pair<StationSegments_e, StationSegments_e> result{};
+
+	auto headPos = m_Train.GetHeadPos();
+	auto tailPos = m_Train.GetTailPos();
+
+	for (auto& [station_segment, coords_pair] : m_StationSegments)
+	{
+		auto [left, right] = coords_pair;
+
+		if ((headPos.x >= left.x && headPos.x <= right.x) && (headPos.y >= left.y && headPos.y <= right.y))
+			result.first = station_segment;
+		
+		if ((tailPos.x >= left.x && tailPos.x <= right.x) && (tailPos.y >= left.y && tailPos.y <= right.y))
+			result.second = station_segment;
+	}
+
+	return result;
+}
+
+
+bool Station::VerifySafetyConditions_ForRequestedRoute(RouteName_e RequestedRoute)
+{
+	switch (RequestedRoute)
+	{
+	case At_1_line:
+
+		if( r_ChDP.GetCoil()->isActive() &&
+			r_24SP.GetCoil()->isActive() &&
+			r_2MK.GetCoil()->isActive() &&
+			r_1P.GetCoil()->isActive() )
+		{
+			return true;
+		}
+			
+		break;
+
+	case At_2_line:
+
+		if( r_ChDP.GetCoil()->isActive() &&
+			r_24SP.GetCoil()->isActive() &&
+			r_2PK.GetCoil()->isActive() &&
+			r_4PK.GetCoil()->isActive() &&
+			r_2P.GetCoil()->isActive() )
+		{
+			return true;
+		}
+
+		break;
+
+	case At_4_line:
+
+		if( r_ChDP.GetCoil()->isActive() &&
+			r_24SP.GetCoil()->isActive() &&
+			r_2PK.GetCoil()->isActive() &&
+			r_4MK.GetCoil()->isActive() &&
+			r_4P.GetCoil()->isActive() )
+		{
+			return true;
+		}
+
+		break;
+
+	default:
+		break;
+	}
+
+	return false;
+}
+
+bool Station::VerifyIfRouteCanBeUnlocked()
+{
+	auto [head_segment, tail_segment] = GetCurrentTrainLocation();
+
+
+	return false;
+}
+
+
+
+
+void Station::Update_1Stage()
+{
+
+	for (auto* button : RouteButtons)
+	{
+		if (*button)
+		{
+			m_RequestedRoute = static_cast<RouteName_e>(button->GetId());
+
+			if (VerifySafetyConditions_ForRequestedRoute(m_RequestedRoute) && !m_IsRouteLocked)
+			{
+				m_IsRouteLocked = true;
+				std::ranges::for_each(RouteButtons, [](TwoStatesButton* btn) { btn->lock(); });
+			}
+			else if (!m_IsRouteLocked)
+			{
+				button->SetState(false);
+			}
+		}
+	}
+
+	auto ActiveRouteButton_It = std::ranges::find_if(RouteButtons, [](TwoStatesButton* ptr) -> bool { return ptr->getState(); });
+	bool isAnyActive = ActiveRouteButton_It != RouteButtons.end();
+
+	if (m_RouteUnlockButton)
+	{
+		if (isAnyActive)
+		{
+			UnlockTheCurrentRoute();
+		}
+	}
+
+
+}
+
+
+
+void Station::Update_2Stage()
+{
+	auto TrainLocation_OnThisFrame = GetCurrentTrainLocation();
+
+	auto [head_pos, tail_pos] = TrainLocation_OnThisFrame;
+	
+	bool should_use_requested_route = false;
+
+	if ((head_pos == s_1p && tail_pos == s_1p) ||
+		(head_pos == s_2p && tail_pos == s_2p) ||
+		(head_pos == s_4p && tail_pos == s_4p))
+	{
+		should_use_requested_route = true;
+	}
+
+
+	if (m_IsRouteLocked)
+	{
+		m_2StrButton.lock();
+		m_4StrButton.lock();
+	}
+	else
+	{
+		m_2StrButton.unlock();
+		m_4StrButton.unlock();
+	}
+	
+	if (m_2StrButton) {}
+	if (m_4StrButton) {}
+
+
+	r_2PK.GetCoil()->SetState(!m_2StrButton.getState());
+	r_2MK.GetCoil()->SetState(m_2StrButton.getState());
+	r_4PK.GetCoil()->SetState(!m_4StrButton.getState());
+	r_4MK.GetCoil()->SetState(m_4StrButton.getState());
+
+
+
+	if (!m_IsRouteLocked && !should_use_requested_route)
+	{
+		if (r_2MK.GetCoil()->isActive())
+			m_CurrentRoute = At_1_line;
+
+		if (r_2PK.GetCoil()->isActive() && r_4PK.GetCoil()->isActive())
+			m_CurrentRoute = At_2_line;
+
+		if (r_2PK.GetCoil()->isActive() && r_4MK.GetCoil()->isActive())
+			m_CurrentRoute = At_4_line;
+	}
+	else if (should_use_requested_route)
+	{
+
+	}
+	else
+	{
+		switch (m_CurrentRoute)
+		{
+		case At_1_line:
+		case At_4_line:
+			r_ChBS.GetCoil()->SetState(true);
+			break;
+		case At_2_line:
+			r_ChGS.GetCoil()->SetState(true);
+			break;
+		default:
+			break;
+		}
+	}
+
+
+////////////////////////////////////////////////////////////////////////////////////////
+
+#define SwitchRelay_If_TrainIsOnTheSegment(location, segment, relay) \
+	if (location.first == segment || location.second == segment)	\
+		relay.GetCoil()->SetState(false);	\
+	else	\
+		relay.GetCoil()->SetState(true);	\
+
+////////////////////////////////////////////////////////////////////////////////////////
+
+	m_Train.FollowTheMouse(&m_Routes[m_CurrentRoute]);
+
+
+	SwitchRelay_If_TrainIsOnTheSegment(TrainLocation_OnThisFrame, s_Chip, r_ChIP);
+	SwitchRelay_If_TrainIsOnTheSegment(TrainLocation_OnThisFrame, s_Chdp, r_ChDP);
+	SwitchRelay_If_TrainIsOnTheSegment(TrainLocation_OnThisFrame, s_2_4_SP, r_24SP);
+	SwitchRelay_If_TrainIsOnTheSegment(TrainLocation_OnThisFrame, s_1p, r_1P);
+	SwitchRelay_If_TrainIsOnTheSegment(TrainLocation_OnThisFrame, s_2p, r_2P);
+	SwitchRelay_If_TrainIsOnTheSegment(TrainLocation_OnThisFrame, s_4p, r_4P);
+
+
+	if ((!r_1P.GetCoil()->isActive() || !r_2P.GetCoil()->isActive() || !r_4P.GetCoil()->isActive()) && r_24SP.GetCoil()->isActive() && m_IsRouteLocked)
+	{
+		UnlockTheCurrentRoute();
+	}
+
+}
+
+
+
+void Station::UnlockTheCurrentRoute()
+{
+	for (auto button : RouteButtons)
+	{
+		m_IsRouteLocked = false;
+		std::ranges::for_each(RouteButtons, [](TwoStatesButton* button) { button->unlock(); button->SetState(false);  });
+	}
+	r_ChBS.GetCoil()->SetState(false);
+	r_ChGS.GetCoil()->SetState(false);
+}
+
+Train& Station::GetTrain() { return m_Train; }
+
+
+void Station::Draw()
+{
+	RenderRequests::getWindow()->draw(m_sprite);
+	m_Train.Draw();
+}
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//									Scheme Segments
 // 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -527,9 +1027,38 @@ SchemeOverlay::SchemeOverlay() : WidgetsBase(overlay_path)
 
 void SchemeOverlay::DrawOverlay()
 {
+	static sf::Text m_text6(L"Стр. 2", m_SFMLRenderer.get_font(), 35);
+	static sf::Text m_text7(L"Стр. 4", m_SFMLRenderer.get_font(), 35);
+	static sf::Text m_text8(L"Отмена Маршр.", m_SFMLRenderer.get_font(), 35);
+
+	static sf::Text m_text_1route(L"Прием На 1п", m_SFMLRenderer.get_font(), 35);
+	static sf::Text m_text_2route(L"Прием На 2п", m_SFMLRenderer.get_font(), 35);
+	static sf::Text m_text_4route(L"Прием На 4п", m_SFMLRenderer.get_font(), 35);
+
+	static bool init = false;
+	if (init == false)
+	{
+		Text_SetColAndPos(m_text6, { 2100, 520 });
+		Text_SetColAndPos(m_text7, { 2100, 590 });
+
+		Text_SetColAndPos(m_text_1route, { 2100, 730 });
+		Text_SetColAndPos(m_text_2route, { 2100, 800 });
+		Text_SetColAndPos(m_text_4route, { 2100, 870 });
+		Text_SetColAndPos(m_text8, { 2100, 940 });
+
+		init = true;
+	}
+
+
 	RenderRequests::InvokeWidgetUpdate([this]
 		{
 			RenderRequests::getWindow()->draw(m_sprite);
+			RenderRequests::getWindow()->draw(m_text6);
+			RenderRequests::getWindow()->draw(m_text7);
+			RenderRequests::getWindow()->draw(m_text8);
+			RenderRequests::getWindow()->draw(m_text_1route);
+			RenderRequests::getWindow()->draw(m_text_2route);
+			RenderRequests::getWindow()->draw(m_text_4route);
 		});
 }
 
@@ -676,11 +1205,16 @@ SchemeSegments::SchemeSegments()
 			continue;
 
 		std::array<std::string, 3> elements_array;
-		for (auto [index, elem] : std::views::enumerate(helpers::split_string(line, "@") | std::views::take(3)))
-		{
-			elements_array[index] = helpers::strip_string(elem);
-		}
-
+		
+		auto view = 
+			helpers::split_string(line, "@")
+			| std::views::take(3)
+			| std::views::transform([](const std::string& s) 
+				{ 
+					return helpers::strip_string(s); 
+				});
+		
+		std::ranges::copy(view, elements_array.begin());
 		auto& [Path1_Contact2, WayThrough, Path2_Contact1] = elements_array;
 
 		SM_ASSERT(Path1_Contact2.size() != 0, "SchemeSegments::SchemeSegments() -> Path1_Contact2 string len == 0");
@@ -844,6 +1378,7 @@ void SchemeSegments::DrawSegments()
 				group->GetSelfRelay()->UpdateState();
 				group->Draw();
 			}
+
 			r_Ch1M.GetCoil()->DrawCoil();
 			r_ChPZ.GetCoil()->DrawCoil();
 			r_Ch2M.GetCoil()->DrawCoil();
@@ -863,368 +1398,46 @@ Station& SchemeSegments::GetStation() { return m_Station; }
 
 
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//									Scheme
+// 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
 Scheme::Scheme()
 { }
 
 
-void Text_SetColPos(sf::Text& text, sf::Vector2f vec)
-{
-	text.setFillColor(sf::Color::Black);
-	text.setPosition(vec);
-}
-
-
 
 void Scheme::DrawScheme()
 {
 	static bool init = false;
-	static bool coil_flag = false;
-	static bool coil_flag2 = true;
-	static bool coil_flag3 = false;
-	static bool coil_flag4 = false;
-	static bool coil_flag5 = false;
-	static bool coil_flag6 = false;
-
-	static ImageButton chbs_btn(buttons_image_path);
-	static ImageButton m_btn(buttons_image_path);
-	static ImageButton m_btn2(buttons_image_path);
-	static ImageButton m_btn3(buttons_image_path);
-	static ImageButton m_btn4(buttons_image_path);
-	static ImageButton m_btn5(buttons_image_path);
-	static TwoStatesButton m_2StrBtn(buttons_image_path);
-	static TwoStatesButton m_4StrBtn(buttons_image_path);
 	
-	static sf::Text m_text1(L"ЧБС", m_SFMLRenderer.get_font(), 35);
-	static sf::Text m_text2(L"ЧИП", m_SFMLRenderer.get_font(), 35);
-	static sf::Text m_text3(L"ЧДП", m_SFMLRenderer.get_font(), 35);
-	static sf::Text m_text4(L"2-4 СП", m_SFMLRenderer.get_font(), 35);
-	static sf::Text m_text5(L"�1�", m_SFMLRenderer.get_font(), 35);
-	static sf::Text m_text6(L"Стрелка 2", m_SFMLRenderer.get_font(), 35);
-	static sf::Text m_text7(L"Стрелка 4", m_SFMLRenderer.get_font(), 35);
+	m_SchemeSegments.GetStation().Update_1Stage();
+	ResetCoils();
+	m_SchemeSegments.ResetPathSegments();
+	m_SchemeSegments.ResetConactGroups();
 	
-	Text_SetColPos(m_text1, { 210, 1280 });
-	Text_SetColPos(m_text2, { 210, 1360 });
-	Text_SetColPos(m_text3, { 210, 1440 });
-	Text_SetColPos(m_text4, { 210, 1520 });
-	Text_SetColPos(m_text5, { 210, 1600 });
-	Text_SetColPos(m_text6, { 210, 1680 });
-	Text_SetColPos(m_text7, { 210, 1760 });
-	
-	RenderRequests::InvokeWidgetUpdate([]
-		{
-			//RenderRequests::getWindow()->draw(m_text);
-			RenderRequests::getWindow()->draw(m_text1);
-			RenderRequests::getWindow()->draw(m_text2);
-			RenderRequests::getWindow()->draw(m_text3);
-			RenderRequests::getWindow()->draw(m_text4);
-			//RenderRequests::getWindow()->draw(m_text5);
-			RenderRequests::getWindow()->draw(m_text6);
-			RenderRequests::getWindow()->draw(m_text7);
-		});
-
-
 	if (!init)
 	{
-		m_btn.SetPosition({ 150, 1200 });
-		m_btn.SetInactiveImageRectSprite({ 6,3,54,50 });
-		m_btn.SetActiveImageRectSprite({ 262,3,54,50 });
-
-		chbs_btn.SetPosition({ 150, 1280 });
-		chbs_btn.SetInactiveImageRectSprite({ 6,3,54,50 });
-		chbs_btn.SetActiveImageRectSprite({ 262,3,54,50 });
-
-		m_btn2.SetPosition({ 150, 1360 });
-		m_btn2.SetInactiveImageRectSprite({ 6,3,54,50 });
-		m_btn2.SetActiveImageRectSprite({ 262,3,54,50 });
-
-		m_btn3.SetPosition({ 150, 1440 });
-		m_btn3.SetInactiveImageRectSprite({ 6,3,54,50 });
-		m_btn3.SetActiveImageRectSprite({ 262,3,54,50 });
-
-		m_btn4.SetPosition({ 150, 1520 });
-		m_btn4.SetInactiveImageRectSprite({ 6,3,54,50 });
-		m_btn4.SetActiveImageRectSprite({ 262,3,54,50 });
-
-		m_btn5.SetPosition({ 150, 1600 });
-		m_btn5.SetInactiveImageRectSprite({ 6,3,54,50 });
-		m_btn5.SetActiveImageRectSprite({ 262,3,54,50 });
-
-		m_4StrBtn.SetPosition({ 150, 1760 });
-		m_4StrBtn.SetFalseStateSpriteRect({ 6,67, 54,50 });
-		m_4StrBtn.SetTrueStateSpriteRect({ 6,131, 54,50 });
-
-		m_2StrBtn.SetPosition({ 150, 1680 });
-		m_2StrBtn.SetFalseStateSpriteRect({ 6,67, 54,50 });
-		m_2StrBtn.SetTrueStateSpriteRect({ 6,131, 54,50 });
+		r_Ch2M.GetCoil()->SetState(true);
+		r_Ch1M.GetCoil()->SetState(true);
 
 		init = true;
 	}
 
-	/*if (m_btn) 
-		coil_flag = !coil_flag;*/
+	m_SchemeSegments.GetStation().Update_2Stage();
 	
-	if (chbs_btn)
-		coil_flag2 = !coil_flag2;
-
-	if (m_btn2)
-		coil_flag3 = !coil_flag3;
-
-	if (m_btn3)
-		coil_flag4 = !coil_flag4;
-
-	if (m_btn4)
-		coil_flag5 = !coil_flag5;
-	
-	//if (m_btn5)
-	//	coil_flag6 = !coil_flag6;
-	
-	if (m_2StrBtn) {}
-	if (m_4StrBtn) {}
-
-	ResetCoils();
-	m_SchemeSegments.ResetPathSegments();
-	m_SchemeSegments.ResetConactGroups();
-
-	m_SchemeSegments.GetStation().Update();
-
-	r_2PK.GetCoil()->SetState(!m_2StrBtn.getState());
-	r_2MK.GetCoil()->SetState(m_2StrBtn.getState());
-	r_4PK.GetCoil()->SetState(!m_4StrBtn.getState());
-	r_4MK.GetCoil()->SetState(m_4StrBtn.getState());
-
-	//r_Ch2M.GetCoil()->SetState(coil_flag);
-	r_ChBS.GetCoil()->SetState(coil_flag2);
-	r_ChIP.GetCoil()->SetState(coil_flag3);
-	r_ChDP.GetCoil()->SetState(coil_flag4);
-	r_24SP.GetCoil()->SetState(coil_flag5);
-
 	m_SchemeSegments.SendSignalFromEntry();
 
 	m_SchemeSegments.DrawSegments();
 	m_Overlay.DrawOverlay();
 	
 #if m_debug
-	std::cout << "\n\n\n\n";
-#endif
-}
-
-
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//									Train 
-// 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
-
-void Train::UpdateHeadAndTailPos()
-{
-	auto pos = m_sprite.getPosition();
-	auto texture_sz = m_texture.getSize();
-	m_TailPos = { pos.x, pos.y - texture_sz.y / 2 };
-	m_HeadPos = { pos.x + texture_sz.x, pos.y - texture_sz.y / 2 };
-}
-
-Train::Train()
-	: WidgetsBase(train_pic_path)
-{
-	m_texture.setSmooth(true);
-	SetPosition({ 500, 143 });
-	m_sprite.setOrigin(m_texture.getSize().x, m_texture.getSize().y );
-}
-
-
-void Train::Draw()
-{
-	RenderRequests::getWindow()->draw(m_sprite);
-}
-
-
-void Train::SetPosition(const sf::Vector2f& new_pos)
-{
-	m_TailPos = { new_pos.x - m_sprite.getGlobalBounds().getSize().x, new_pos.y };
-	m_HeadPos = { new_pos.x , new_pos.y  };
-	
-	m_sprite.setPosition(new_pos);
-}
-
-
-sf::Vector2f Train::GetHeadPos() { return m_HeadPos; }
-sf::Vector2f Train::GetTailPos() { return m_TailPos; }
-
-
-void Train::FollowTheMouse(TrainRoute* route)
-{
-	if (!m_SFMLRenderer.get_sfWindow()->hasFocus())
-		return;
-
-	bool is_mouse_pressed_on_this_frame = sf::Mouse::isButtonPressed(sf::Mouse::Left);
-	static bool cought = false;
-	static sf::Vector2f mouse_offset;
-
-	if (is_hovered() && is_mouse_pressed_on_this_frame && !cought)
-	{
-		cought = true;
-		mouse_offset = m_sprite.getPosition() - m_SFMLRenderer.get_world_mouse_position();
-	}
-	else if (cought && is_mouse_pressed_on_this_frame)
-	{
-		sf::Vector2f targetHeadPos = route->GetTrainPos(m_sprite.getPosition(), mouse_offset);
-		targetHeadPos.x += mouse_offset.x;
-		SetPosition(targetHeadPos);
-		m_sprite.setRotation(route->GetTrainRot(m_HeadPos, m_TailPos));
-
-		float rotationRad = m_sprite.getRotation() * (PI / 180.0);
-		float offsetX = -((float)m_texture.getSize().x);
-		float offsetY = 0;
-		float rotatedOffsetX = offsetX * cos(rotationRad) - offsetY * sin(rotationRad);
-		float rotatedOffsetY = offsetX * sin(rotationRad) + offsetY * cos(rotationRad);
-
-		m_TailPos = { m_sprite.getPosition().x - +rotatedOffsetX, m_sprite.getPosition().y + rotatedOffsetY};
-
-	}
-	else if (!is_mouse_pressed_on_this_frame)
-	{
-		cought = false;
-	}
-}
-
-
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//									Route 
-// 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-#if 1
-
-TrainRoute::TrainRoute(RouteName_e Route) 
-	: m_CurrentRoute(Route)
-{ }
-
-TrainRoute::TrainRoute(std::initializer_list<sf::Vector2f> il) 
-	: m_BasePoints(il) 
-{ }
-
-TrainRoute::TrainRoute(RouteName_e Route, std::initializer_list<sf::Vector2f> il) 
-	: m_CurrentRoute(Route)
-	, m_BasePoints(il)
-{ }
-
-void TrainRoute::SetupLerpPoints(std::initializer_list<sf::Vector2f> il) 
-{
-	m_BasePoints.clear(); 
-	m_BasePoints = il;
-}
-
+	std::cout < "\n\n\n\n";
 #endif
 
-std::pair<sf::Vector2f, sf::Vector2f> TrainRoute::GetRailwaySegment(sf::Vector2f pos) 
-{
-	std::pair<sf::Vector2f, sf::Vector2f> points;
-	bool found = false;
-
-	for (size_t i = 0; i < m_BasePoints.size() - 1; ++i)
-	{
-		const sf::Vector2f& pointA = m_BasePoints[i];
-		const sf::Vector2f& pointB = m_BasePoints[i + 1];
-
-		if (pointB.x >= pos.x && pointA.x <= pos.x)
-		{
-			found = true;
-			points = { pointA, pointB };
-			break;
-		}
-	}
-
-	if (!found)
-		return{};
-	
-	return points;
-}
 
 
-sf::Vector2f TrainRoute::GetTrainPos(sf::Vector2f train_head, sf::Vector2f mouse_offset)
-{
-	auto mouse_pos = m_SFMLRenderer.get_world_mouse_position();
-
-	if (mouse_pos.x + mouse_offset.x < 257)
-		mouse_pos.x = 257 - mouse_offset.x;
-
-	if (mouse_pos.x + mouse_offset.x > 1978)
-		mouse_pos.x = 1978 - mouse_offset.x;
-	
-	auto current_segment = GetRailwaySegment(train_head);
-
-	float mid_y_point = std::lerp(current_segment.first.y, current_segment.second.y, helpers::NormalizeValue(current_segment.first.x, current_segment.second.x, train_head.x));
-
-	SM_ASSERT(!std::isnan(mid_y_point), "Lerp returned nan");
-
-	return {mouse_pos.x, mid_y_point};
-}
-
-float TrainRoute::GetTrainRot(sf::Vector2f train_head, sf::Vector2f train_tail)
-{
-	auto current_segment = GetRailwaySegment(train_tail);
-	float mid_y_point = std::lerp(current_segment.first.y, current_segment.second.y, helpers::NormalizeValue(current_segment.first.x, current_segment.second.x, train_tail.x));
-	SM_ASSERT(!std::isnan(mid_y_point), "Lerp returned nan");
-
-	return helpers::angleBetweenPoints({ train_tail.x, mid_y_point }, train_head);
-}
-
-
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//									Station 
-// 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
-void Station::Update()
-{
-	m_Train.FollowTheMouse(&m_Routes[2]);
-
-}
-
-
-Station::Station()
-	: WidgetsBase(station_pic_path) 
-	, m_Routes {
-		{ At_1_line,
-			{
-				{78, 262},
-				{1140, 262},
-				{1270, 181},
-				{1989, 181},
-			}
-		},
-		{ At_2_line,
-			{
-				{78, 262},
-				{1989, 262},
-			}
-		},
-		{ At_4_line,
-			{
-				{78, 262},
-				{1245, 262},
-				{1371, 343},
-				{1989, 343},
-			}
-		},
-	}
-{
-	m_texture.setSmooth(true);
-
-}
-
-void Station::Draw()
-{
-	RenderRequests::getWindow()->draw(m_sprite);
-
-	if (train_should_be_drawn)
-		m_Train.Draw();
 }
 

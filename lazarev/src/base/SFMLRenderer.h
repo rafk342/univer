@@ -3,8 +3,6 @@
 #include <print>
 
 #include "vendor/SFML/Graphics.hpp"
-#include "Widgets/Line.h"
-#include "base/PathGenerator.h"
 #include "scheme/Scheme.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -42,9 +40,9 @@ public:
     sf::Event*         get_sfEvents();
     sf::View*          get_sfView();
     sf::Font&          get_font();
-    sf::Vector2f       get_delta_mouse();
-    sf::Vector2f       get_world_delta_mouse();
-    sf::Vector2f       get_world_mouse_position();
+    sf::Vector2f       GetDeltaMouse();
+    sf::Vector2f       GetWorldDeltaMouse();
+    sf::Vector2f       GetWorldMousePos();
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

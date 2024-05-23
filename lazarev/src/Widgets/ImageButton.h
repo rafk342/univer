@@ -2,7 +2,7 @@
 
 #include "vendor/SFML/Graphics.hpp"
 #include "base/WidgetsBase.h"
-#include "base/RenderRequests.h"
+
 
 class WidgetsBase;
 
@@ -16,6 +16,7 @@ protected:
     sf::Color unhovered_color = { 255, 255, 255 };
     bool was_pressed_over_the_button = false;
     bool was_pressed = false;
+    int id = 0;  //Can be unused
 
     bool ButtonBehavior();
 
@@ -26,8 +27,9 @@ public:
     void SetActiveImageRectSprite(const sf::IntRect& rect);
     void SetHoveredTint(sf::Color col);
     void SetUnhoveredTint(sf::Color col);
-
-    operator bool() { return ButtonBehavior(); }
+    void SetId(int v);
+    int  GetId();
+    operator bool();
 };
 
 
@@ -41,12 +43,13 @@ class TwoStatesButton : public ImageButton
 public:
     using ImageButton::ImageButton;
 
-    operator bool() { return ButtonBehavior(); }
-    bool getState() { return m_current_state; }
+    operator bool();
+    bool getState();
     void SetTrueStateSpriteRect(const sf::IntRect& rect);
     void SetFalseStateSpriteRect(const sf::IntRect& rect);
     void lock();
     void unlock();
     bool isLocked();
+    bool SetState(bool state);
 };
 
