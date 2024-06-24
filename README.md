@@ -1,1 +1,1 @@
-<img src="[https://github.com/rafk342/VSeditor/assets/97851724/397285cd-3751-473a-998c-a166bea1c76a](https://github.com/rafk342/univer/assets/97851724/6935b687-0036-4320-9a5f-cdd4d35b0b16)" width="512">
+<img src="https://github.com/rafk342/univer/assets/97851724/8a97cf85-d1b5-4d76-935b-6e0317f3d1b0" width="512">
