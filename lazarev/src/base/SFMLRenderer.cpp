@@ -1,8 +1,6 @@
 #include "SFMLRenderer.h"
 #include "base/RenderRequests.h"
 
-SFMLRenderer* SFMLRenderer::self = nullptr;
-
 SFMLRenderer* SFMLRenderer::Create()
 {
 	if (!self)
@@ -34,8 +32,8 @@ void SFMLRenderer::Init()
 {
 	sf::ContextSettings settings;
 	settings.antialiasingLevel = 8;
-	
-	m_Window = std::make_unique<sf::RenderWindow>(sf::VideoMode(1920, 1080), "m_Wnd", sf::Style::Default, settings);
+
+	m_Window = std::make_unique<sf::RenderWindow>(sf::VideoMode(1920, 1080), "Wnd", sf::Style::Default, settings);
 	m_Window->setFramerateLimit(frameLimit);
 	
 	m_view.setSize(sf::Vector2f(m_Window->getSize()));
@@ -58,42 +56,33 @@ void SFMLRenderer::OnRender()
 	sf::Vector2f prev_mouse_pos{};
 	sf::Vector2f curr_mouse_pos{};
 	
-	sf::Vector2f prev_mouse_world_pos{};
-	sf::Vector2f curr_mouse_world_pos{};
-
 
 	while (m_Window->isOpen())
 	{
 		curr_mouse_pos = sf::Vector2f(sf::Mouse::getPosition());
-		curr_mouse_world_pos = m_Window->mapPixelToCoords(sf::Mouse::getPosition(*m_Window), m_view);
 		currTime = m_Clock.getElapsedTime();
 		
 		m_frameTime = currTime.asSeconds() - prevTime.asSeconds();
 		m_fps = 1.f / m_frameTime;
-
 		delta_mouse = curr_mouse_pos - prev_mouse_pos;
-		delta_mouse_in_world = curr_mouse_world_pos - prev_mouse_world_pos;
+
 		if (m_Window->hasFocus())
 		{
 			if (sf::Mouse::isButtonPressed(sf::Mouse::Middle))
 				m_view.move(-(delta_mouse));
 		}
 		handleEvents();
-
-		m_scheme.DrawScheme();
-
+		
+		{
+			m_scheme.DrawScheme();
+		}
 		m_Window->setView(m_view);
 		m_Window->clear(sf::Color(200, 200, 200));
-
-	
 		RenderRequests::DrawAll();
-		
 		//auto start = std::chrono::high_resolution_clock::now();
 		m_Window->display();
-	
-		//std::println("{:.10f}", std::chrono::duration_cast<std::chrono::duration<double>>(std::chrono::high_resolution_clock::now() - start).count());
+		//std::println("3 : {:.10f}\n", std::chrono::duration_cast<std::chrono::duration<double>>(std::chrono::high_resolution_clock::now() - start).count());
 
-		prev_mouse_world_pos = curr_mouse_world_pos;
 		prev_mouse_pos = curr_mouse_pos;
 		prevTime = currTime;
 	}
@@ -137,10 +126,9 @@ sf::View*			SFMLRenderer::get_sfView()		{ return &m_view;}
 sf::RenderWindow*	SFMLRenderer::get_sfWindow()	{ return m_Window.get();}
 sf::Font&			SFMLRenderer::get_font()		{ return m_font;}
 sf::Vector2f		SFMLRenderer::GetDeltaMouse()	{ return delta_mouse; }
-sf::Vector2f		SFMLRenderer::GetWorldDeltaMouse() { return delta_mouse_in_world; }
 
 sf::Vector2f SFMLRenderer::GetWorldMousePos()
 {
-	return m_Window->mapPixelToCoords(sf::Mouse::getPosition(*m_SFMLRenderer.get_sfWindow()), *m_SFMLRenderer.get_sfView());
+	return m_Window->mapPixelToCoords(sf::Mouse::getPosition(*m_Window), m_view);
 }
 

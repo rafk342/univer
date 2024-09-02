@@ -136,25 +136,20 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="src\scheme\Scheme.cpp" />
-    <ClCompile Include="src\base\PathGenerator.cpp" />
     <ClCompile Include="src\helpers\Helpers.cpp" />
     <ClCompile Include="src\Widgets\ImageButton.cpp" />
-    <ClCompile Include="src\Widgets\Line.cpp" />
     <ClCompile Include="src\base\RenderRequests.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="src\base\SFMLRenderer.cpp" />
     <ClCompile Include="src\base\WidgetsBase.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\base\SimpleTimer.h" />
+    <ClInclude Include="src\base\Timer.h" />
     <ClInclude Include="src\scheme\Scheme.h" />
-    <ClInclude Include="src\base\PathGenerator.h" />
     <ClInclude Include="src\helpers\Helpers.h" />
     <ClInclude Include="src\Widgets\ImageButton.h" />
-    <ClInclude Include="src\Widgets\Line.h" />
     <ClInclude Include="src\base\RenderRequests.h" />
-    <ClInclude Include="src\base\sfGlobals.h" />
-    <ClInclude Include="src\common\m_assert.h" />
+    <ClInclude Include="src\common\sm_assert.h" />
     <ClInclude Include="vendor\Cougar\AlignedAllocator.h" />
     <ClInclude Include="vendor\Cougar\FixedSizeAllocator.h" />
     <ClInclude Include="vendor\SFML\Audio.hpp" />

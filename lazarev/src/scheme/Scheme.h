@@ -12,7 +12,7 @@
 
 #include "base/WidgetsBase.h"
 #include "helpers/Helpers.h"
-#include "base/SimpleTimer.h"
+#include "base/Timer.h"
 #include "src/Widgets/ImageButton.h"
 
 
@@ -29,10 +29,7 @@ class SchemeOverlay;
 class RelayCoil;
 class Relay;
 class RelayContactsGroup;
-
 class TwoStatesButton;
-
-
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //									Externs
@@ -70,6 +67,7 @@ enum ContactType_e
 	T_NONE,
 	T_COIL,
 	T_RELAY,
+	NUM_CONTACT_TYPES
 };
 
 enum RelayContactName_e
@@ -112,6 +110,11 @@ enum ContactsGroupName_e
 	s2_c_CHBS1,
 	s2_c_CH2M,
 	s2_c_CHPZ,
+
+	s1_c_VV,
+	s1_c_CHRI,
+
+	NUM_CONTACT_GROUPS,
 };
 
 enum RouteName_e
@@ -124,13 +127,13 @@ enum RouteName_e
 
 enum StationSegments_e
 {
-	s_None = 0,
-	s_Chip = 1,
-	s_Chdp = 2,
-	s_2_4_SP = 3,
-	s_1p = 4,
-	s_2p = 5,
-	s_4p = 6,
+	s_None,
+	s_Chip,
+	s_Chdp,
+	s_2_4_SP,
+	s_1p,
+	s_2p,
+	s_4p,
 };
 
 
@@ -220,25 +223,28 @@ public:
 
 class PathSegment : public WidgetsBase
 {
-	static sf::Vector2f		SegmentsGlobImageOffset;
+	static inline sf::Vector2f SegmentsGlobImageOffset = {35, 380};
+	
 	PathSegmentContact		m_Contacts[2];
 	std::string				m_name;
 	bool					isActiveOnThisFrame = false;
 	bool					isOutputSegment = false;
+	
+	void ManageSpriteColor();
 
 public:
 
-	PathSegment(const std::filesystem::path& m_path);
+	PathSegment(const std::filesystem::path& _path);
 
 	PathSegmentContact* GetContact_1();
 	PathSegmentContact* GetContact_2();
-	const std::string	getName();
+	const std::string&	getName();
 
-	void ResetSegment();
-	bool isActive();
-	bool SendSignalThroughItself(PathSegmentContact* sender, bool signal);
-	void Draw();
-	void MarkSegmentAsOutput();
+	void	ResetSegment();
+	bool	isActive();
+	bool	SendSignalThroughItself(PathSegmentContact* sender, bool signal);
+	void	Draw();
+	void	MarkSegmentAsOutput();
 };
 
 
@@ -266,14 +272,14 @@ public:
 	CoilContact* GetContact_1();
 	CoilContact* GetContact_2();
 
-	bool SendSignalThroughItself(CoilContact* sender, bool signal);
-	void ResetCoil();
-	bool isActive();
-	void SetState(bool state);
-	void DrawCoil();
-	void setLeftContactPos(sf::Vector2f point);
-	bool PrevFrameState();
-	void setGroupToCheck(RelayContactsGroup* group);
+	bool	SendSignalThroughItself(CoilContact* sender, bool signal);
+	void	ResetCoil();
+	bool	isActive();
+	void	SetState(bool state);
+	void	DrawCoil();
+	void	setLeftContactPos(sf::Vector2f point);
+	bool	PrevFrameState();
+	void	setGroupToCheck(RelayContactsGroup* group);
 };
 
 
@@ -334,7 +340,7 @@ class TrainRoute
 {
 
 	RouteName_e					m_ThisRouteType = At_1_line;
-	std::vector<sf::Vector2f>	m_BasePoints; // interpolation points
+	std::vector<sf::Vector2f>	m_BasePoints; // lerp points
 	
 	auto GetLerpPointsBasedOnTrainPos(sf::Vector2f train_pos) -> std::pair<sf::Vector2f, sf::Vector2f>;
 
@@ -353,30 +359,94 @@ public:
 
 class Train : public WidgetsBase
 {
-	sf::Vector2f m_HeadPos{};
-	sf::Vector2f m_TailPos{};
+	sf::Vector2f	m_HeadPos{};
+	sf::Vector2f	m_TailPos{};
+	bool			m_cought = false;
+	sf::Vector2f	m_mouse_offset;
+
+	void SetPosition(sf::Vector2f new_pos);
 
 public:
 
 	Train();
 	
 	void			Draw();
-	void			SetPosition(const sf::Vector2f& new_pos);
 	sf::Vector2f	GetHeadPos();
 	sf::Vector2f	GetTailPos();
-	void			FollowTheMouse(TrainRoute* route);
+	bool			FollowTheMouse(TrainRoute* route);
 	void			ResetPosition();
-
 };
 
+class TracksideLights : public WidgetsBase
+{
+	static inline sf::Color sm_Black = { 0,0,0,255 };
+	static inline sf::Color sm_White = { 255,255,255,255 };
+	static inline sf::Color sm_Green = { 135,187,120,255 };
+	static inline sf::Color sm_Yellow = { 200,193,74,255 };
+	static inline sf::Color sm_Red = { 151,49,49,255 };
+	static constexpr double inline FLASH_DURATION = 1;
+	static constexpr double inline TRANSITION_DURATION = 0.8;
+
+public:
+
+	enum LightsState_e : int8_t
+	{
+		ONE_GREEN = 0,
+		ONE_YELLOW_FLASHING,
+		ONE_YELLOW,
+		TWO_YELLOW_UPPER_FLASHING,
+		TWO_YELLOW,	
+		ONE_RED,
+
+		NUM_STATES
+	};
+
+private:
+
+	class Light : public WidgetsBase
+	{
+		sf::Vector2f m_Pos;
+	public:
+		Light(sf::Vector2f base_pos, sf::Vector2f pos);
+		void Draw();
+	};
+
+	Light m_Lights[5];
+	Timer m_FlashingTimer;
+	Timer m_TransitionTimer;
+
+	bool m_isFlashing = false;
+	bool m_isLockedForTransition = false;
+	bool m_isInTransition = false;
+	bool m_isReverseFlashing = false;
+	bool m_TransitionRequest = false;
+
+	LightsState_e m_NextState = ONE_RED;
+	LightsState_e m_CurrentState = ONE_RED;
+
+public:
+	
+	TracksideLights(sf::Vector2f lights_pos);
+	void SwitchState(LightsState_e state);
+	sf::Color GetFlashingScalar();
+	void ApplyScalarToColor(sf::Color& col, sf::Color scalar);
+	void TransitionTest();
+	void TriggerTransition();
+	void DoTransition();
+
+	void Draw();
+};
 
 class Station : public WidgetsBase
 {
 	TrainRoute  m_Routes[3];
 	Train	    m_Train;
-	RouteName_e m_CurrentRoute = At_1_line;
-	RouteName_e m_RequestedRoute = At_1_line;
+	TracksideLights m_Lights;
+
+	RouteName_e m_CurrentRoute = At_2_line;
+	RouteName_e m_RequestedRoute = At_2_line;
 	
+
 	//		segment            ->			left / right coord
 	std::map<StationSegments_e, std::pair<sf::Vector2f, sf::Vector2f>> m_StationSegments;
 
@@ -387,12 +457,13 @@ class Station : public WidgetsBase
 	TwoStatesButton m_2_RouteButton;
 	TwoStatesButton m_4_RouteButton;
 	ImageButton		m_RouteUnlockButton;
+	ImageButton		m_ResetTrainPosButton;
 
-	std::array<TwoStatesButton*, 3> RouteButtons;
+	std::array<TwoStatesButton*, 3> m_RouteButtons;
 
 	bool m_RequestTheForRouteUnlock = false;
 	bool m_IsRouteLocked = false;
-
+	//													Head    / tail
 	auto GetCurrentTrainLocation() -> std::pair<StationSegments_e, StationSegments_e>;  // returns current segments for Head and tail positions
 	bool VerifySafetyConditions_ForRequestedRoute(RouteName_e RequestedRoute);
 	bool VerifyIfRouteCanBeUnlocked();
@@ -401,8 +472,8 @@ class Station : public WidgetsBase
 public:
 
 	Station();
-	void Update_1Stage();
-	void Update_2Stage();
+	void EarlyUpdate();
+	void LateUpdate();
 	void Draw();
 	Train& GetTrain();
 
@@ -461,8 +532,8 @@ class Scheme
 	SchemeOverlay  m_Overlay;
 
 public:
-
+	
 	Scheme();
 	void DrawScheme();
-
+	__forceinline void FirstInit();
 };

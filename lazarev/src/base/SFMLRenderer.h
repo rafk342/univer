@@ -10,10 +10,9 @@
 
 class SFMLRenderer
 {
-    static SFMLRenderer* self;
-    SFMLRenderer() = default;
+    static inline SFMLRenderer* self = nullptr;
     std::unique_ptr<sf::RenderWindow> m_Window;
-        
+
     sf::View    m_view;
     sf::Font    m_font;
     sf::Event   m_event{};
@@ -23,8 +22,8 @@ class SFMLRenderer
     float       m_fps = 0;
   
     sf::Vector2f delta_mouse;
-    sf::Vector2f delta_mouse_in_world;
-
+    
+    SFMLRenderer() = default;
     void handleEvents();
 
 public:
@@ -41,12 +40,11 @@ public:
     sf::View*          get_sfView();
     sf::Font&          get_font();
     sf::Vector2f       GetDeltaMouse();
-    sf::Vector2f       GetWorldDeltaMouse();
     sf::Vector2f       GetWorldMousePos();
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#define m_SFMLRenderer (*SFMLRenderer::Get())
+#define g_SFMLRenderer (*SFMLRenderer::Get())
 

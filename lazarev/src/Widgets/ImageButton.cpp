@@ -4,12 +4,12 @@
 
 bool ImageButton::ButtonBehavior()
 {
-    RenderRequests::InvokeWidgetUpdate([this]
+    RenderRequests::DrawInvoke([this]
         {
             RenderRequests::getWindow()->draw(m_sprite);
         });
   
-    if (!m_SFMLRenderer.get_sfWindow()->hasFocus())
+    if (!g_SFMLRenderer.get_sfWindow()->hasFocus())
         return false;
 
     bool is_hovered_on_this_frame = is_hovered();
@@ -89,12 +89,12 @@ ImageButton::operator bool() { return ButtonBehavior(); }
 
 bool TwoStatesButton::ButtonBehavior()
 {
-    RenderRequests::InvokeWidgetUpdate([this]
+    RenderRequests::DrawInvoke([this]
         {
             RenderRequests::getWindow()->draw(m_sprite);
         });
 
-    if (!m_SFMLRenderer.get_sfWindow()->hasFocus())
+    if (!g_SFMLRenderer.get_sfWindow()->hasFocus())
         return false;
 
     bool is_hovered_on_this_frame = is_hovered();

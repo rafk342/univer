@@ -2,33 +2,30 @@
 #include <chrono>
 
 
-class SimpleTimer
+class Timer
 {
-	using TClock = std::chrono::high_resolution_clock;
-	using TTime = std::chrono::time_point<std::chrono::high_resolution_clock>;
-
-	TTime m_StartTime;
-	TTime m_EndTime;
+	std::chrono::time_point<std::chrono::steady_clock> m_StartTime;
+	std::chrono::time_point<std::chrono::steady_clock> m_EndTime;
 
 	bool m_IsRunning = false;
 
 public:
 
-	SimpleTimer()
+	Timer()
 	{
 		Reset();
 	}
 
-	static SimpleTimer StartNew()
+	static Timer StartNew()
 	{
-		SimpleTimer result;
+		Timer result;
 		result.Start();
 		return result;
 	}
 
 	void Start()
 	{
-		m_StartTime = TClock::now();
+		m_StartTime = std::chrono::steady_clock::now();
 		m_IsRunning = true;
 	}
 
@@ -37,8 +34,16 @@ public:
 		if (!m_IsRunning)
 			return;
 
-		m_EndTime = TClock::now();
+		m_EndTime = std::chrono::steady_clock::now();
 		m_IsRunning = false;
+	}
+
+	void Update()
+	{
+		if (!m_IsRunning)
+			return;
+
+		m_EndTime = std::chrono::steady_clock::now();
 	}
 
 	void Restart()
@@ -49,7 +54,7 @@ public:
 
 	void Reset()
 	{
-		TTime time = TClock::now();
+		std::chrono::time_point<std::chrono::steady_clock> time = std::chrono::steady_clock::now();
 		m_StartTime = time;
 		m_EndTime = time;
 	}

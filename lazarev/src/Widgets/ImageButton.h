@@ -16,7 +16,7 @@ protected:
     sf::Color unhovered_color = { 255, 255, 255 };
     bool was_pressed_over_the_button = false;
     bool was_pressed = false;
-    int id = 0;  //Can be unused
+    int id = -1;  //Can be unused
 
     bool ButtonBehavior();
 

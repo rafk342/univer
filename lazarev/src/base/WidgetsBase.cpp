@@ -8,21 +8,14 @@ WidgetsBase::WidgetsBase(const std::string& path)
 
 void WidgetsBase::loadImageFromFile(const std::string& path)
 {
-    SM_ASSERT(m_texture.loadFromFile(path), "::WidgetsBase() Couldn't load image from the given file");
+    SM_ASSERT(m_texture.loadFromFile(path), std::format("::WidgetsBase() Couldn't load image from the given path : {}" , path));
     m_texture.generateMipmap();
     m_sprite.setTexture(m_texture);
 }
 
 bool WidgetsBase::is_hovered()
 {
-    auto* pWnd = m_SFMLRenderer.get_sfWindow();
-    auto* pView = m_SFMLRenderer.get_sfView();
-
-    if (!pWnd || !pView)
-        return false;
-
-    sf::Vector2f mouseWorldPos = pWnd->mapPixelToCoords(sf::Vector2i(sf::Mouse::getPosition(*pWnd)), *pView);
-    return m_sprite.getGlobalBounds().contains(mouseWorldPos);
+    return m_sprite.getGlobalBounds().contains(g_SFMLRenderer.GetWorldMousePos());
 }
 
 sf::Texture&     WidgetsBase::GetTexture()   { return m_texture; }

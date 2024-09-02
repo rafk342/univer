@@ -1,13 +1,11 @@
 #include "RenderRequests.h"
 
-std::deque<std::function<void()>> RenderRequests::Tasks;
-
 sf::RenderWindow* RenderRequests::getWindow()
 {
-    return m_SFMLRenderer.get_sfWindow();
+    return g_SFMLRenderer.get_sfWindow();
 }
 
-void RenderRequests::InvokeWidgetUpdate(const std::function<void()>& delegate)
+void RenderRequests::DrawInvoke(const std::function<void()>& delegate)
 {
     Tasks.push_back(delegate);
 }

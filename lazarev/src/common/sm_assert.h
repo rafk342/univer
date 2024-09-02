@@ -10,7 +10,7 @@ struct source_location
 };
 
 #define CUR_SOURCE_LOCATION source_location({__FILE__, __LINE__})
-namespace m_asserts
+namespace _asserts
 {
     template<typename T>
     void small_assert(bool expr, const source_location& loc, const T& description)
@@ -25,7 +25,7 @@ namespace m_asserts
 
 #if DEBUG_ASSERT_ENABLED
 #define SM_ASSERT(expr, descr) \
-        m_asserts::small_assert(expr, CUR_SOURCE_LOCATION, #descr)
+        _asserts::small_assert(expr, CUR_SOURCE_LOCATION, #descr)
 #else
 #define SM_ASSERT(expr, Expr)
 #endif
