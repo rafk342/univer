@@ -21,7 +21,8 @@ protected:
     bool ButtonBehavior();
 
 public:
-    using WidgetsBase::WidgetsBase;
+    //using WidgetsBase::WidgetsBase;
+    ImageButton(std::string path, bool genMips = true);
 
     void SetInactiveImageRectSprite(const sf::IntRect& rect);
     void SetActiveImageRectSprite(const sf::IntRect& rect);

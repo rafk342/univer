@@ -8,7 +8,7 @@ WidgetsBase::WidgetsBase(const std::string& path)
 
 void WidgetsBase::loadImageFromFile(const std::string& path)
 {
-    SM_ASSERT(m_texture.loadFromFile(path), std::format("::WidgetsBase() Couldn't load image from the given path : {}" , path));
+    SM_ASSERT(m_texture.loadFromFile(path), std::format("::WidgetsBase() Couldn't load image from the given path : {}", path));
     m_texture.generateMipmap();
     m_sprite.setTexture(m_texture);
 }

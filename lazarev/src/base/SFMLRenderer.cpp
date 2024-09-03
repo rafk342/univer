@@ -68,7 +68,7 @@ void SFMLRenderer::OnRender()
 
 		if (m_Window->hasFocus())
 		{
-			if (sf::Mouse::isButtonPressed(sf::Mouse::Middle))
+			if (sf::Mouse::isButtonPressed(sf::Mouse::Right))
 				m_view.move(-(delta_mouse));
 		}
 		handleEvents();

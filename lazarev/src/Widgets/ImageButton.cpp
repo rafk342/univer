@@ -1,6 +1,15 @@
 #include "ImageButton.h"
 #include "base/RenderRequests.h"
 
+ImageButton::ImageButton(std::string path, bool genMips)
+	: WidgetsBase(path)
+{
+    if (genMips) 
+    {
+        m_texture.generateMipmap();
+		m_sprite.setTexture(m_texture);
+    }
+}
 
 bool ImageButton::ButtonBehavior()
 {
@@ -50,6 +59,8 @@ bool ImageButton::ButtonBehavior()
     }
     return false;
 }
+
+
 
 void ImageButton::SetInactiveImageRectSprite(const sf::IntRect& rect)
 {

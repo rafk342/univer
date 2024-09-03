@@ -1,12 +1,17 @@
 ﻿
 #include "Scheme.h"
 #include "base/RenderRequests.h"
-
+#include <math.h>
 namespace _win {
 #include "windows.h"
 }
 
-#define __debug 0
+
+#define SwitchRelay_If_TrainIsOnTheSegment(location, segment, relay) \
+	if (location.first == segment || location.second == segment) \
+		relay.GetCoil()->SetState(false); \
+	else \
+		relay.GetCoil()->SetState(true); \
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -17,14 +22,14 @@ namespace _win {
 
 namespace
 {
-	const char* buttons_image_path				= "assets\\buttons.png";
-	const char* relay_parts_path				= "assets\\relay_parts.png";
-	const char* train_pic_path					= "assets\\train4.png";
-	const char* very_important_data_file_path	= "assets\\SomeVeryImportantData.txt";
-	const char* scheme_segments_path			= "assets\\SchemeSegments2";
-	const char* overlay_path					= "assets\\scheme_overlay.png";
-	const char* station_pic_path				= "assets\\station2.png";
-	const char* trackside_lights_path =			"assets\\tracklight.png";
+	const char* buttons_image_path				= "assets_final\\buttons1.png";
+	const char* relay_parts_path				= "assets_final\\relay_parts.png";
+	const char* train_pic_path					= "assets_final\\train4.png";
+	const char* very_important_data_file_path	= "assets_final\\SomeVeryImportantData.txt";
+	const char* scheme_segments_path			= "assets_final\\SchemeSegments2";
+	const char* overlay_path					= "assets_final\\scheme_overlay.png";
+	const char* station_pic_path				= "assets_final\\station2.png";
+	const char* trackside_lights_path			= "assets_final\\tracklight.png";
 
 	int DefaultTrain_X_AxisLimit_LeftSide = 257;
 	int DefaultTrain_X_AxisLimit_RightSide = 1978;
@@ -264,11 +269,21 @@ PathSegment::PathSegment(const std::filesystem::path& _path)
 	m_Contacts[0].ConnectToSegment(this);
 	m_Contacts[1].ConnectToSegment(this);
 
+	auto rect = helpers::CalcTextureRect(m_texture);
+	if (rect)
+	{
+		m_sprite.setPosition(SegmentsGlobImageOffset.x + rect->left, SegmentsGlobImageOffset.y + rect->top);
+		m_sprite.setTextureRect(rect.value());
+	}
+	else
+	{
+		m_sprite.setPosition(SegmentsGlobImageOffset);
+	}
 	helpers::InvertTexture(m_texture);
+	m_texture.generateMipmap();
 	m_sprite.setTexture(m_texture);
-
 	m_texture.setSmooth(true);
-	m_sprite.setPosition(SegmentsGlobImageOffset);
+	
 	ResetSegment();
 }
 
@@ -564,7 +579,7 @@ void Train::SetPosition(sf::Vector2f new_pos)
 }
 
 
-bool Train::FollowTheMouse(TrainRoute* route)
+bool Train::FollowTheMouse()
 {
 	if (!g_SFMLRenderer.get_sfWindow()->hasFocus())
 		return false;
@@ -578,9 +593,15 @@ bool Train::FollowTheMouse(TrainRoute* route)
 	}
 	else if (m_cought && is_mouse_pressed_on_this_frame)
 	{
-		sf::Vector2f targetHeadPos = route->GetTrainPos(m_sprite.getPosition(), m_mouse_offset);
+		if (!m_CurrentRoute) 
+		{
+			m_cought = false;
+			return false;
+		}
+
+		sf::Vector2f targetHeadPos = m_CurrentRoute->GetTrainPos(m_sprite.getPosition(), m_mouse_offset);
 		SetPosition(targetHeadPos);
-		m_sprite.setRotation(route->GetTrainRot(m_HeadPos, (m_sprite.getPosition() - m_sprite.getGlobalBounds().getSize()) ));
+		m_sprite.setRotation(m_CurrentRoute->GetTrainRot(m_HeadPos, (m_sprite.getPosition() - m_sprite.getGlobalBounds().getSize()) ));
 
 		float rotationRad = m_sprite.getRotation() * (PI / 180.0);
 		float offsetX = -((float)m_texture.getSize().x);
@@ -597,13 +618,14 @@ bool Train::FollowTheMouse(TrainRoute* route)
 	return m_cought;
 }
 
-void Train::ResetPosition()
+void Train::ResetPosition(TrainRoute* new_route)
 {
 	SetPosition({ 277, 262 });
 	TrainLimit_on_X_axis_LeftSide = DefaultTrain_X_AxisLimit_LeftSide;
 
 	m_HeadPos = { 277.0f, 262.0f };
 	m_TailPos = { 277.0f - m_texture.getSize().x, 262.0f };
+	m_CurrentRoute = new_route;
 }
 
 
@@ -611,6 +633,8 @@ void Train::ResetPosition()
 
 sf::Vector2f	Train::GetHeadPos()			{ return m_HeadPos; }
 sf::Vector2f	Train::GetTailPos()			{ return m_TailPos; }
+
+void Train::SetRoute(TrainRoute* route) { m_CurrentRoute = route; }
 
 
 
@@ -740,19 +764,6 @@ TracksideLights::TracksideLights(sf::Vector2f pos)
 	}
 }
 
-void TracksideLights::SwitchState(LightsState_e state)
-{
-	//if (m_isInTransition)
-	//	return;
-
-	if (m_CurrentState == state)
-		return;
-
-	m_TransitionRequest = true;
-	m_NextState = state;
-}
-
-
 sf::Color TracksideLights::GetFlashingScalar()
 {
 	m_FlashingTimer.Update();
@@ -765,6 +776,7 @@ sf::Color TracksideLights::GetFlashingScalar()
 		m_FlashingTimer.Update();
 		elapsedTime = m_FlashingTimer.GetElapsedSeconds();
 	}
+	
 
 	double normalizedTime = math::mapRange(elapsedTime, 0, FLASH_DURATION, 0, 1);
 	double easedTime = math::easeInOutSine(normalizedTime);
@@ -772,23 +784,17 @@ sf::Color TracksideLights::GetFlashingScalar()
 	sf::Color resultColor;
 	if (m_isReverseFlashing)
 	{
-		resultColor.r = static_cast<uint8_t>(std::lerp(sm_White.r, sm_Black.r, 1 - easedTime));
-		resultColor.g = static_cast<uint8_t>(std::lerp(sm_White.g, sm_Black.g, 1 - easedTime));
-		resultColor.b = static_cast<uint8_t>(std::lerp(sm_White.b, sm_Black.b, 1 - easedTime));
-	}
-	else
-	{
 		resultColor.r = static_cast<uint8_t>(std::lerp(sm_White.r, sm_Black.r, easedTime));
 		resultColor.g = static_cast<uint8_t>(std::lerp(sm_White.g, sm_Black.g, easedTime));
 		resultColor.b = static_cast<uint8_t>(std::lerp(sm_White.b, sm_Black.b, easedTime));
 	}
-	resultColor.a = 255;
-	
-	if (resultColor.r < 5)
-		m_isLockedForTransition = false;
 	else
-		m_isLockedForTransition = true;
-
+	{
+		resultColor.r = static_cast<uint8_t>(std::lerp(sm_Black.r, sm_White.r, easedTime));
+		resultColor.g = static_cast<uint8_t>(std::lerp(sm_Black.g, sm_White.g, easedTime));
+		resultColor.b = static_cast<uint8_t>(std::lerp(sm_Black.b, sm_White.b, easedTime));
+	}
+	resultColor.a = 255;
 	return resultColor;
 }
 
@@ -800,40 +806,13 @@ void TracksideLights::ApplyScalarToColor(sf::Color& col, sf::Color scalar)
 	col.a = static_cast<uint8_t>(static_cast<float>(col.a) * static_cast<float>(scalar.a) / 255.0f);
 }
 
-void TracksideLights::TransitionTest()
+uint8_t ColorToBrightness(sf::Color col) 
 {
-	if (!m_TransitionRequest)
-		return;
-
-	if (m_isFlashing)
-	{
-		if (!m_isLockedForTransition)
-		{
-			m_FlashingTimer.Stop();
-			TriggerTransition();
-			return;
-		}
-		else
-		{
-			return; // try again on the next frame
-		}
-	}
-	else
-	{
-		TriggerTransition();
-	}
-}
-
-void TracksideLights::TriggerTransition()
-{
-	m_isInTransition = true;
-	m_TransitionRequest = false;
-	m_TransitionTimer.Start();
+	return static_cast<uint8_t>(0.299f * col.r + 0.587f * col.g + 0.114f * col.b); ;
 }
 
 void TracksideLights::DoTransition()
 {
-	m_TransitionTimer.Update();
 	double t = m_TransitionTimer.GetElapsedSeconds();
 	constexpr double half_duration = TRANSITION_DURATION * 0.5;
 	
@@ -847,11 +826,11 @@ void TracksideLights::DoTransition()
 			sf::Color currColor = light.GetSprite().getColor();
 			sf::Color resultColor;
 
-			resultColor.r = static_cast<uint8_t>(std::lerp(currColor.r, 0,  normalizedTime));	 //1 -
-			resultColor.g = static_cast<uint8_t>(std::lerp(currColor.g, 0, normalizedTime));	 //1 -
-			resultColor.b = static_cast<uint8_t>(std::lerp(currColor.b, 0, normalizedTime));	// 1 -
+			resultColor.r = static_cast<uint8_t>(std::lerp(currColor.r, sm_Black.r, normalizedTime));
+			resultColor.g = static_cast<uint8_t>(std::lerp(currColor.g, sm_Black.g, normalizedTime));
+			resultColor.b = static_cast<uint8_t>(std::lerp(currColor.b, sm_Black.b, normalizedTime));
 			resultColor.a = 255;
-	
+			
 			light.GetSprite().setColor(resultColor);
 		}
 	}
@@ -919,6 +898,46 @@ void TracksideLights::DoTransition()
 }
 
 
+void TracksideLights::SwitchState(LightsState_e state)
+{
+	if (m_CurrentState == state || m_NextState == state)
+		return;
+
+	m_TransitionRequest = true;
+	m_NextState = state;
+}
+
+TracksideLights::LightsState_e TracksideLights::GetCurrentState()
+{
+	return m_CurrentState;
+}
+
+void TracksideLights::TransitionTest()
+{
+	if (!m_TransitionRequest)
+		return;
+
+	if (m_isFlashing)
+	{
+		m_isFlashing = false;
+		TriggerTransition();
+	}
+	else
+	{
+		TriggerTransition();
+	}
+	m_TransitionRequest = false;
+}
+
+void TracksideLights::TriggerTransition()
+{
+	m_FlashingTimer.Stop();
+	m_FlashingTimer.Reset();
+	m_FlashingTimer.Update();
+
+	m_isInTransition = true;
+	m_TransitionTimer.Start();
+}
 
 
 void TracksideLights::Draw()
@@ -951,6 +970,7 @@ void TracksideLights::Draw()
 			sf::Color scalar = GetFlashingScalar();
 			sf::Color flashing_yellow = sm_Yellow;
 			ApplyScalarToColor(flashing_yellow, scalar);
+
 			m_Lights[0].GetSprite().setColor(flashing_yellow);
 			m_Lights[3].GetSprite().setColor(sm_Yellow);
 			break;
@@ -973,26 +993,33 @@ void TracksideLights::Draw()
 	}
 	else
 	{
+		m_TransitionTimer.Update();
 		DoTransition();
 		if (m_TransitionTimer.GetElapsedSeconds() > TRANSITION_DURATION)
 		{
-			m_isInTransition = false;
-			m_CurrentState = m_NextState;
 			m_TransitionTimer.Stop();
 			m_TransitionTimer.Reset();
 			m_TransitionTimer.Update();
-		}
-		m_FlashingTimer.Reset();
-		if (m_CurrentState == ONE_YELLOW_FLASHING || m_CurrentState == TWO_YELLOW_UPPER_FLASHING)
-		{
-			m_FlashingTimer.Start();
-			m_isFlashing = true;
-		}
-		else
-		{
-			m_FlashingTimer.Stop();
-			m_isFlashing = false;
-		}
+			
+			m_FlashingTimer.Reset();
+			m_FlashingTimer.Update();
+			
+			m_CurrentState = m_NextState;
+
+			if (m_CurrentState == ONE_YELLOW_FLASHING || m_CurrentState == TWO_YELLOW_UPPER_FLASHING)
+			{
+				m_FlashingTimer.Start();
+				m_isFlashing = true;
+				m_isReverseFlashing = true;
+			}
+			else
+			{
+				m_FlashingTimer.Stop();
+				m_isFlashing = false;
+			}
+			m_TransitionRequest = false;
+			m_isInTransition = false;
+		}		
 	}
 	TransitionTest();
 
@@ -1097,8 +1124,8 @@ Station::Station()
 	m_ResetTrainPosButton.SetInactiveImageRectSprite({ 6,3,54,50 });
 	m_ResetTrainPosButton.SetActiveImageRectSprite({ 262,3,54,50 });
 
-	m_Lights.SwitchState(TracksideLights::ONE_YELLOW_FLASHING);
-
+	m_Lights.SwitchState(TracksideLights::ONE_RED);
+	m_Train.SetRoute(&m_Routes[At_2_line]);
 }
 
 
@@ -1181,13 +1208,25 @@ bool Station::VerifyIfRouteCanBeUnlocked()
 {
 	auto [head_segment, tail_segment] = GetCurrentTrainLocation();
 
+	if (head_segment == s_1p || head_segment == s_2p || head_segment == s_4p || head_segment == s_None || head_segment == s_Chip)
+		return true;
+
+	return false;
+}
+
+bool Station::VerifyIfTrainCanApplyRoute()
+{
+	auto [head_segment, tail_segment] = GetCurrentTrainLocation();
+
+	if (head_segment == s_Chdp || head_segment == s_Chip || head_segment == s_None)
+		return true;
 
 	return false;
 }
 
 
 
-void Station::EarlyUpdate()
+void Station::EarlyUpdate() // is called before reseting everything frow the prev frame
 {
 	for (auto* button : m_RouteButtons)
 	{
@@ -1199,6 +1238,10 @@ void Station::EarlyUpdate()
 			{
 				m_IsRouteLocked = true;
 				m_CurrentRoute = m_RequestedRoute;
+
+				if (VerifyIfTrainCanApplyRoute())
+					m_Train.SetRoute(&m_Routes[m_CurrentRoute]);
+
 				std::ranges::for_each(m_RouteButtons, [](TwoStatesButton* btn) { btn->lock(); });
 			}
 			else if (!m_IsRouteLocked)
@@ -1221,31 +1264,16 @@ void Station::EarlyUpdate()
 
 	if (m_ResetTrainPosButton)
 	{
-		m_Train.ResetPosition();
+		if (IsTrainOnFinalSegments())
+			m_Train.ResetPosition(&m_Routes[m_CurrentRoute]);
 	}
 
 }
 
 
 
-void Station::LateUpdate()
+void Station::LateUpdate() // called before sending signals and after reseting everything
 {
-
-#if 0
-	
-	auto [head_pos, tail_pos] = TrainLocation_OnThisFrame;
-
-	if ( (tail_pos == s_1p ) || ( tail_pos == s_2p ) || (tail_pos == s_4p) )
-	{
-		TrainLimit_on_X_axis_LeftSide = 1449 + m_Train.GetSprite().getTexture()->getSize().x;
-	}
-	else
-	{
-		TrainLimit_on_X_axis_LeftSide = DefaultTrain_X_AxisLimit_LeftSide;
-	}
-
-#endif
-
 	if (m_IsRouteLocked)
 	{
 		switch (m_CurrentRoute)
@@ -1285,36 +1313,17 @@ void Station::LateUpdate()
 	auto TrainLocation_OnThisFrame = GetCurrentTrainLocation();
 	auto [head_location, tail_location] = TrainLocation_OnThisFrame;
 
-	if (!m_IsRouteLocked)
+	
+	if (m_Train.FollowTheMouse())
 	{
-		if (r_2MK.GetCoil()->isActive())
-			m_RequestedRoute = At_1_line;
-
-		if (r_2PK.GetCoil()->isActive() && r_4PK.GetCoil()->isActive())
-			m_RequestedRoute = At_2_line;
-
-		if (r_2PK.GetCoil()->isActive() && r_4MK.GetCoil()->isActive())
-			m_RequestedRoute = At_4_line;
-
-		m_CurrentRoute = m_RequestedRoute;
+		if (head_location == tail_location && head_location != s_None && head_location != s_Chip)	//when head and tail will be on the same station segment - we set left limit on this segment,
+			TrainLimit_on_X_axis_LeftSide = m_StationSegments.at(head_location).first.x + m_Train.GetTexture().getSize().x;	// update happens when train is dragged
 	}
 
-	if (m_Train.FollowTheMouse(&m_Routes[m_CurrentRoute]))
-	{
-		if (head_location == tail_location)											//when head and tail will be on the same station segment - we set left limit on this segment,
-			TrainLimit_on_X_axis_LeftSide = m_StationSegments.at(head_location).first.x + m_Train.GetTexture().getSize().x;		// update happens when train is dragged
-	}
-
-	if (_win::GetAsyncKeyState(VK_INSERT))
-	{
-		m_Lights.SwitchState((TracksideLights::LightsState_e)(rand() % 6));
-	}
-
-#define SwitchRelay_If_TrainIsOnTheSegment(location, segment, relay) \
-	if (location.first == segment || location.second == segment) \
-		relay.GetCoil()->SetState(false); \
-	else \
-		relay.GetCoil()->SetState(true); \
+	//if (_win::GetAsyncKeyState(VK_INSERT))
+	//{
+	//	m_Lights.SwitchState((TracksideLights::LightsState_e)(rand() % 6));
+	//}
 
 	SwitchRelay_If_TrainIsOnTheSegment(TrainLocation_OnThisFrame, s_Chip, r_ChIP);
 	SwitchRelay_If_TrainIsOnTheSegment(TrainLocation_OnThisFrame, s_Chdp, r_ChDP);
@@ -1325,10 +1334,33 @@ void Station::LateUpdate()
 
 	if (m_IsRouteLocked)
 	{
-		if ((!r_1P.GetCoil()->isActive() || !r_2P.GetCoil()->isActive() || !r_4P.GetCoil()->isActive()) && r_24SP.GetCoil()->isActive())
+		if (IsTrainOnFinalSegments())
 		{
-			UnlockTheCurrentRoute();
+			constexpr std::pair<RouteName_e, StationSegments_e> RouteToSegment[] =
+			{
+				{At_1_line, s_1p},
+				{At_2_line, s_2p},
+				{At_4_line, s_4p}
+			};
+
+			if (RouteToSegment[m_CurrentRoute].second == tail_location)
+				UnlockTheCurrentRoute();
 		}
+	}
+
+	ManageTrackLightsState();
+
+	if (m_Lights.GetCurrentState() == TracksideLights::ONE_RED && !m_IsRouteLocked)
+	{
+		bool isTrainOnLeftSide = head_location == s_None || head_location == s_Chip;
+		if (isTrainOnLeftSide)
+		{
+			TrainLimit_on_X_axis_RightSide = m_StationSegments.at(s_Chdp).first.x - 1;
+		}
+	}
+	else
+	{
+		TrainLimit_on_X_axis_RightSide = DefaultTrain_X_AxisLimit_RightSide;
 	}
 }
 
@@ -1336,11 +1368,64 @@ void Station::LateUpdate()
 
 void Station::UnlockTheCurrentRoute()
 {
+	if (!VerifyIfRouteCanBeUnlocked())
+		return;
+
 	m_IsRouteLocked = false;
 	std::ranges::for_each(m_RouteButtons, [](TwoStatesButton* button) { button->unlock(); button->SetState(false);  });
 
 	r_ChBS.GetCoil()->SetState(false);
 	r_ChGS.GetCoil()->SetState(false);
+}
+
+void Station::ManageTrackLightsState()
+{
+	bool isTrainOnTheRoute = !r_ChDP.GetCoil()->isActive() || !r_24SP.GetCoil()->isActive();
+
+	if (!m_IsRouteLocked)
+	{
+		m_Lights.SwitchState(TracksideLights::ONE_RED);
+	}
+
+	else if (r_ChBS.GetCoil()->isActive() && !isTrainOnTheRoute)
+	{
+		if (m_CurrentRoute == At_1_line && !r_1P.GetCoil()->isActive())
+		{
+			m_Lights.SwitchState(TracksideLights::ONE_RED);
+		}
+		else if (m_CurrentRoute == At_4_line && !r_4P.GetCoil()->isActive())
+		{
+			m_Lights.SwitchState(TracksideLights::ONE_RED);
+		}
+		else
+		{
+			m_Lights.SwitchState(TracksideLights::TWO_YELLOW_UPPER_FLASHING);
+		}
+	}
+
+	else if (r_ChGS.GetCoil()->isActive() && !isTrainOnTheRoute)
+	{
+		if (m_CurrentRoute == At_2_line && !r_2P.GetCoil()->isActive())
+			m_Lights.SwitchState(TracksideLights::ONE_RED);
+
+		else
+			m_Lights.SwitchState(TracksideLights::ONE_GREEN);
+	}
+
+	else if (isTrainOnTheRoute)
+	{
+		m_Lights.SwitchState(TracksideLights::ONE_RED);
+	}
+
+}
+
+bool Station::IsTrainOnFinalSegments()
+{
+	return (
+		!r_1P.GetCoil()->isActive() ||
+		!r_2P.GetCoil()->isActive() || 
+		!r_4P.GetCoil()->isActive()
+		) && r_24SP.GetCoil()->isActive();
 }
 
 Train& Station::GetTrain() { return m_Train; }
@@ -1402,6 +1487,7 @@ void SchemeOverlay::DrawOverlay()
 		});
 }
 
+#define LOAD_DATA_FROM_FILE false
 
 SchemeSegments::SchemeSegments()
 {
@@ -1413,14 +1499,14 @@ SchemeSegments::SchemeSegments()
 		if (!file_entry.is_regular_file())
 			continue;
 
-		m_PathSegments.push_back(new PathSegment(file_entry.path()));
-		m_PathSegmentsMap[m_PathSegments.back()->getName()] = m_PathSegments.back();
+		m_PathSegments.emplace_back(new PathSegment(file_entry.path()));
+		m_PathSegmentsMap[m_PathSegments.back()->getName()] = m_PathSegments.back().get();
 
 		if (m_PathSegments.back()->getName() == "s2_1_1")
-			s2_entry_segment = m_PathSegments.back();
+			s2_entry_segment = m_PathSegments.back().get();
 
 		if (m_PathSegments.back()->getName() == "s1_1_1_entry")
-			s1_entry_segment = m_PathSegments.back();
+			s1_entry_segment = m_PathSegments.back().get();
 
 		if (m_PathSegments.back()->getName() == "s1_15_6_output")
 			m_PathSegments.back()->MarkSegmentAsOutput();
@@ -1429,39 +1515,37 @@ SchemeSegments::SchemeSegments()
 			m_PathSegments.back()->MarkSegmentAsOutput();
 	}
 
-#define make_group(name, ...) {name, new RelayContactsGroup(__VA_ARGS__)} 
+#define MAKE_GROUP(name, ...) {  name, std::make_shared<RelayContactsGroup>(__VA_ARGS__)  } 
 
 	m_ContactGroupsMap =
 	{
-		//Scheme 1
-		make_group(s1_c_CHGS_1,	{255,805},	&r_ChGS),
-		make_group(s1_c_CHBS_1,	{447,805},	&r_ChBS),
-		make_group(s1_c_CHIP_1,	{262,968},	&r_ChIP),
-		make_group(s1_c_CHIP_2,	{996,1195}, &r_ChIP),
-		make_group(s1_c_CH1M_1,	{1210,1300},&r_Ch1M, true),
-		make_group(s1_c_CH2M_1,	{1084,546},	&r_Ch2M),
-		make_group(s1_c_CHPZ_1,	{1210,1420},&r_ChPZ, true),
-		make_group(s1_c_CHDP_1,	{1260,1060},&r_ChDP, true),
-		make_group(s1_c_2_4_SP,	{1070,1070},&r_24SP, true),
+		MAKE_GROUP(s1_c_CHGS_1,	sf::Vector2f(255.0f,805.0f),	&r_ChGS),
+		MAKE_GROUP(s1_c_CHBS_1,	sf::Vector2f(447.0f,805.0f),	&r_ChBS),
+		MAKE_GROUP(s1_c_CHIP_1,	sf::Vector2f(262.0f,968.0f),	&r_ChIP),
+		MAKE_GROUP(s1_c_CHIP_2,	sf::Vector2f(996.0f,1195.0f),	&r_ChIP),
+		MAKE_GROUP(s1_c_CH1M_1,	sf::Vector2f(1210.0f,1300.0f),	&r_Ch1M, true),
+		MAKE_GROUP(s1_c_CH2M_1,	sf::Vector2f(1084.0f,546.0f),	&r_Ch2M),
+		MAKE_GROUP(s1_c_CHPZ_1,	sf::Vector2f(1210.0f,1420.0f),	&r_ChPZ, true),
+		MAKE_GROUP(s1_c_CHDP_1,	sf::Vector2f(1260.0f,1058.0f),	&r_ChDP, true),
+		MAKE_GROUP(s1_c_2_4_SP,	sf::Vector2f(1070.0f,1065.0f),	&r_24SP, true),
 
-		make_group(s1_c_2PK_1,	{787,935},	&r_2PK),
-		make_group(s1_c_2PK_2,	{787,793},	&r_2PK),
-		make_group(s1_c_2MK,	{785,670},	&r_2MK),
-		make_group(s1_c_4PK,	{998,797},	&r_4PK),
-		make_group(s1_c_4MK,	{997,934},	&r_4MK),
+		MAKE_GROUP(s1_c_2PK_1,	sf::Vector2f(787.0f,935.0f),	&r_2PK),
+		MAKE_GROUP(s1_c_2PK_2,	sf::Vector2f(787.0f,793.0f),	&r_2PK),
+		MAKE_GROUP(s1_c_2MK,	sf::Vector2f(785.0f,670.0f),	&r_2MK),
+		MAKE_GROUP(s1_c_4PK,	sf::Vector2f(998.0f,797.0f),	&r_4PK),
+		MAKE_GROUP(s1_c_4MK,	sf::Vector2f(997.0f,934.0f),	&r_4MK),
 
-		make_group(s1_c_1P,		{1189,665}, &r_1P),
-		make_group(s1_c_2P,		{1189,785}, &r_2P),
-		make_group(s1_c_4P,		{1190,930}, &r_4P),
+		MAKE_GROUP(s1_c_1P,		sf::Vector2f(1189.0f,665.0f),	&r_1P),
+		MAKE_GROUP(s1_c_2P,		sf::Vector2f(1189.0f,785.0f),	&r_2P),
+		MAKE_GROUP(s1_c_4P,		sf::Vector2f(1190.0f,930.0f),	&r_4P),
 
-		//Scheme 2
-		make_group(s2_c_CHGS1, {419,1471}, &r_ChGS),
-		make_group(s2_c_CHBS1, {610,1529}, &r_ChBS),
-		make_group(s2_c_CH2M,  {950,1597}, &r_Ch2M),
-		make_group(s2_c_CHPZ,  {950,1767}, &r_ChPZ),
-		
-		make_group(s1_c_VV,		{955,425},	nullptr),
-		make_group(s1_c_CHRI,	{1190,425}, nullptr),
+		MAKE_GROUP(s2_c_CHGS1,	sf::Vector2f(419.0f,1471.0f),	&r_ChGS),
+		MAKE_GROUP(s2_c_CHBS1,	sf::Vector2f(610.0f,1529.0f),	&r_ChBS),
+		MAKE_GROUP(s2_c_CH2M,	sf::Vector2f(950.0f,1597.0f),	&r_Ch2M),
+		MAKE_GROUP(s2_c_CHPZ,	sf::Vector2f(950.0f,1767.0f),	&r_ChPZ),
+
+		MAKE_GROUP(s1_c_VV,		sf::Vector2f(955.0f,425.0f),	nullptr),
+		MAKE_GROUP(s1_c_CHRI,	sf::Vector2f(1190.0f,425.0f),	nullptr),
 	};
 	
 	std::map<std::string, ContactsGroupName_e> __StrContactGroupsMap__
@@ -1535,9 +1619,100 @@ SchemeSegments::SchemeSegments()
 //									file parser 
 //
 
+
+#if LOAD_FROM_FILE
 	std::ifstream input(very_important_data_file_path);
 	SM_ASSERT(input.is_open(), "SchemeSegments::SchemeSegments() -> Unable to open important data file");
+#else
+std::string data = R"(
+	#P*s2_1_1*C2 @ #G*s2_c_CHGS1*N11 & #G*s2_c_CHGS1*N13 @ #P*s2_2_1*C1
+	#P*s2_2_1*C2 @ #G*s2_c_CHBS1*N11 & #G*s2_c_CHBS1*N13 @ #P*s2_3_1*C1
+	#P*s2_3_1*C2 @ 										 @ #P*s2_3_3*C1
+	#P*s2_3_1*C2 @ 										 @ #P*s2_3_2*C1
+	#P*s2_3_3*C2 @ #G*s2_c_CH2M*N11 & #G*s2_c_CH2M*N12 	 @ #P*s2_4_3*C1
+	#P*s2_3_2*C2 @ #G*s2_c_CHPZ*N11 & #G*s2_c_CHPZ*N12   @ #P*s2_4_1*C1
+	#P*s2_4_1*C2 @ 									     @ #P*s2_4_2*C1
+	#P*s2_4_3*C2 @ 									     @ #P*s2_4_2*C1
+	#P*s2_4_2*C2 @ #C*r_ChPZ*C1 & #C*r_ChPZ*C2 			 @ #P*s2_5_1*C1
+
+	#P*s1_1_1_entry*C2 @   @ #P*s1_1_2*C1
+	#P*s1_1_1_entry*C2 @   @ #P*s1_1_3*C1
+
+	#P*s1_1_2*C2 @ #G*s1_c_CHGS_1*N11 & #G*s1_c_CHGS_1*N13 @ #P*s1_2*C1	
+	#P*s1_1_3*C2 @ #G*s1_c_CHIP_1*N11 & #G*s1_c_CHIP_1*N12 @ #P*s1_3_2*C1
+	#P*s1_2*C2   @ #G*s1_c_CHBS_1*N11 & #G*s1_c_CHBS_1*N13 @ #P*s1_3_1*C1
 	
+	#P*s1_3_2*C2 @ @ #P*s1_3_9*C1
+	#P*s1_3_2*C2 @ @ #P*s1_3_10*C1
+	
+	#P*s1_3_1*C2 @ @ #P*s1_3_9*C1
+	#P*s1_3_1*C2 @ @ #P*s1_3_11*C1
+	
+	#P*s1_3_9*C2 @ @ #P*s1_3_10*C1
+	#P*s1_3_9*C2 @ @ #P*s1_3_11*C1
+	
+	#P*s1_3_11*C2 @ @ #P*s1_3_3*C1
+	#P*s1_3_11*C2 @ @ #P*s1_3_4*C1
+	
+	#P*s1_3_3*C2  @ #G*s1_c_CH2M_1*N11 & #G*s1_c_CH2M_1*N12 @ #P*s1_14_6*C1 
+	#P*s1_14_6*C2 @ @ #P*s1_14_8*C1
+	#P*s1_14_8*C2 @ #C*r_Ch2M*C1      & #C*r_Ch2M*C2 @ #P*s1_15_2*C1
+	
+	#P*s1_15_2*C2 @ @ #P*s1_15_6_output*C1
+	
+	#P*s1_3_10*C2 @ @ #P*s1_3_5*C1
+	#P*s1_3_10*C2 @ @ #P*s1_3_6*C1
+	
+	#P*s1_3_6*C2 @ @ #P*s1_3_7*C1
+	#P*s1_3_6*C2 @ @ #P*s1_3_8*C1
+	
+	#P*s1_3_5*C2 @ #G*s1_c_CHIP_2*N11 & #G*s1_c_CHIP_2*N12 @ #P*s1_4*C1
+	#P*s1_4*C2	 @ #G*s1_c_CHDP_1*N13 & #G*s1_c_CHDP_1*N11 @ #P*s1_5*C2
+	#P*s1_5*C1	 @ @ #P*s1_5_3*C1
+	
+	#P*s1_3_7*C2 @ #G*s1_c_CH1M_1*N12 & #G*s1_c_CH1M_1*N11 @ #P*s1_5_1*C1 
+	#P*s1_5_1*C2 @ @ #P*s1_5_3*C1
+	
+	#P*s1_5_3*C2 @ #C*r_Ch1M*C1       & #C*r_Ch1M*C2 	   @ #P*s1_15_1*C1
+	#P*s1_5_1*C2 @ 									       @ #P*s1_5*C1
+	
+	#P*s1_5*C2 @ #G*s1_c_CHDP_1*N11   & #G*s1_c_CHDP_1*N12 @ #P*s1_11*C1
+	
+	#P*s1_3_8*C2 @ #G*s1_c_CHPZ_1*N12 & #G*s1_c_CHPZ_1*N11 @ #P*s1_5_2*C1
+	#P*s1_5_2*C2 @ @ #P*s1_5_3*C1
+	#P*s1_5_2*C2 @ @ #P*s1_5*C1
+	
+	#P*s1_11*C2  @ #G*s1_c_2_4_SP*N11 & #G*s1_c_2_4_SP*N12 @ #P*s1_6_1*C1
+	#P*s1_6_1*C2 @ #G*s1_c_2PK_1*N11  & #G*s1_c_2PK_1*N12  @ #P*s1_9*C1
+	
+	#P*s1_6_1*C2 @ @ #P*s1_6_3*C1
+	#P*s1_6_1*C2 @ @ #P*s1_6_2*C1
+	#P*s1_6_3*C2 @ @ #P*s1_6_4*C1
+	#P*s1_6_3*C2 @ @ #P*s1_6*C1
+
+	#P*s1_15_1*C2 @ @ #P*s1_15_6_output*C1
+	
+	#P*s1_6_2*C2 @ #G*s1_c_2PK_1*N11 & #G*s1_c_2PK_1*N12 @ #P*s1_9*C1
+	#P*s1_9*C2   @ #G*s1_c_4MK*N11   & #G*s1_c_4MK*N12   @ #P*s1_10*C1
+	#P*s1_10*C2  @ #G*s1_c_4P*N11    & #G*s1_c_4P*N13    @ #P*s1_14_2*C1
+	
+	#P*s1_6_4*C2 @ #G*s1_c_2PK_2*N11 & #G*s1_c_2PK_2*N12 @ #P*s1_8*C1
+	#P*s1_8*C2   @ #G*s1_c_4PK*N11 & #G*s1_c_4PK*N12 @ #P*s1_12*C1
+	#P*s1_12*C2  @ #G*s1_c_2P*N11 & #G*s1_c_2P*N13 @ #P*s1_14_3*C1
+	
+	#P*s1_14_3*C2 @ @ #P*s1_14_4*C1
+	#P*s1_14_2*C2 @ @ #P*s1_14_4*C1
+	
+	#P*s1_6*C2 @ #G*s1_c_2MK*N11 & #G*s1_c_2MK*N12 @ #P*s1_7*C1
+	#P*s1_7*C2 @ #G*s1_c_1P*N11 & #G*s1_c_1P*N13 @ #P*s1_14_1*C1
+	#P*s1_14_1*C2 @ @ #P*s1_14_5*C1
+	#P*s1_14_5*C2 @ @ #P*s1_14_8*C1
+	
+	#P*s1_14_4*C2 @ @ #P*s1_14_5*C1
+)";
+	std::stringstream input(data);
+#endif
+
 	std::string line;
 	line.reserve(100);
 
@@ -1672,35 +1847,27 @@ SchemeSegments::SchemeSegments()
 	}
 
 	r_ChPZ.GetCoil()->setLeftContactPos({ 1310, 1575 });
-	r_ChPZ.GetCoil()->setGroupToCheck(m_ContactGroupsMap.at(s2_c_CHPZ));
+	r_ChPZ.GetCoil()->setGroupToCheck(m_ContactGroupsMap.at(s2_c_CHPZ).get());
 	r_Ch1M.GetCoil()->setLeftContactPos({1588, 1277});
-	r_Ch1M.GetCoil()->setGroupToCheck(m_ContactGroupsMap.at(s1_c_CH1M_1));
+	r_Ch1M.GetCoil()->setGroupToCheck(m_ContactGroupsMap.at(s1_c_CH1M_1).get());
 	r_Ch2M.GetCoil()->setLeftContactPos({1589, 521});
-	r_Ch2M.GetCoil()->setGroupToCheck(m_ContactGroupsMap.at(s1_c_CH2M_1));
+	r_Ch2M.GetCoil()->setGroupToCheck(m_ContactGroupsMap.at(s1_c_CH2M_1).get());
 } 
 
-
-
-SchemeSegments::~SchemeSegments()
-{
-	for (auto ptr : m_PathSegments)
-		delete ptr;
-	
-	for (auto [v1, ptr] : m_ContactGroupsMap)
-		delete ptr;
-}
+#undef LOAD_DATA_FROM_FILE
+#undef MAKE_GROUP
 
 
 void SchemeSegments::ResetPathSegments()
 {
-	for (auto* path : m_PathSegments)
+	for (auto& path : m_PathSegments)
 		path->ResetSegment();
 }
 
 
 void SchemeSegments::ResetConactGroups()
 {
-	for (auto [name, group] : m_ContactGroupsMap)
+	for (auto& [name, group] : m_ContactGroupsMap)
 		group->Reset();
 }
 
@@ -1712,12 +1879,12 @@ void SchemeSegments::DrawSegments()
 			if (m_PathSegments.empty())
 				return;
 
-			for (auto path : m_PathSegments)
+			for (auto& path : m_PathSegments)
 			{
 				path->Draw();
 			}
 
-			for (auto [name, group] : m_ContactGroupsMap)
+			for (auto& [name, group] : m_ContactGroupsMap)
 			{
 				group->Draw();
 			}
@@ -1777,8 +1944,4 @@ void Scheme::DrawScheme()
 	m_SchemeSegments.SendSignalFromEntry();
 	m_SchemeSegments.DrawSegments();
 	m_Overlay.DrawOverlay();
-
-#if __debug
-	std::cout < "\n\n\n\n";
-#endif
 }

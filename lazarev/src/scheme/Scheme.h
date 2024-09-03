@@ -363,6 +363,7 @@ class Train : public WidgetsBase
 	sf::Vector2f	m_TailPos{};
 	bool			m_cought = false;
 	sf::Vector2f	m_mouse_offset;
+	TrainRoute*		m_CurrentRoute = nullptr;
 
 	void SetPosition(sf::Vector2f new_pos);
 
@@ -373,8 +374,9 @@ public:
 	void			Draw();
 	sf::Vector2f	GetHeadPos();
 	sf::Vector2f	GetTailPos();
-	bool			FollowTheMouse(TrainRoute* route);
-	void			ResetPosition();
+	void			SetRoute(TrainRoute* route);
+	bool			FollowTheMouse();
+	void			ResetPosition(TrainRoute* new_route);
 };
 
 class TracksideLights : public WidgetsBase
@@ -383,9 +385,10 @@ class TracksideLights : public WidgetsBase
 	static inline sf::Color sm_White = { 255,255,255,255 };
 	static inline sf::Color sm_Green = { 135,187,120,255 };
 	static inline sf::Color sm_Yellow = { 200,193,74,255 };
-	static inline sf::Color sm_Red = { 151,49,49,255 };
+	//static inline sf::Color sm_Red = { 151,49,49,255 };
+	static inline sf::Color sm_Red = { 174,50,50,255 };
 	static constexpr double inline FLASH_DURATION = 1;
-	static constexpr double inline TRANSITION_DURATION = 0.8;
+	static constexpr double inline TRANSITION_DURATION = 0.5;
 
 public:
 
@@ -423,41 +426,42 @@ private:
 
 	LightsState_e m_NextState = ONE_RED;
 	LightsState_e m_CurrentState = ONE_RED;
-
-public:
 	
-	TracksideLights(sf::Vector2f lights_pos);
-	void SwitchState(LightsState_e state);
 	sf::Color GetFlashingScalar();
 	void ApplyScalarToColor(sf::Color& col, sf::Color scalar);
 	void TransitionTest();
 	void TriggerTransition();
 	void DoTransition();
 
+public:
+	
+	TracksideLights(sf::Vector2f lights_pos);
+	void SwitchState(LightsState_e state);
+	LightsState_e GetCurrentState();
 	void Draw();
 };
 
 class Station : public WidgetsBase
 {
-	TrainRoute  m_Routes[3];
-	Train	    m_Train;
-	TracksideLights m_Lights;
+	using LeftRightCoodsPair = std::pair<sf::Vector2f, sf::Vector2f>;
 
-	RouteName_e m_CurrentRoute = At_2_line;
-	RouteName_e m_RequestedRoute = At_2_line;
+	TrainRoute			m_Routes[3];
+	Train				m_Train;
+	TracksideLights		m_Lights;
+
+	RouteName_e			m_CurrentRoute = At_2_line;
+	RouteName_e			m_RequestedRoute = At_2_line;
 	
+	std::map<StationSegments_e, LeftRightCoodsPair> m_StationSegments;
 
-	//		segment            ->			left / right coord
-	std::map<StationSegments_e, std::pair<sf::Vector2f, sf::Vector2f>> m_StationSegments;
-
-	TwoStatesButton m_2StrButton;
-	TwoStatesButton m_4StrButton;
+	TwoStatesButton		m_2StrButton;
+	TwoStatesButton		m_4StrButton;
 	
-	TwoStatesButton m_1_RouteButton;
-	TwoStatesButton m_2_RouteButton;
-	TwoStatesButton m_4_RouteButton;
-	ImageButton		m_RouteUnlockButton;
-	ImageButton		m_ResetTrainPosButton;
+	TwoStatesButton		m_1_RouteButton;
+	TwoStatesButton		m_2_RouteButton;
+	TwoStatesButton		m_4_RouteButton;
+	ImageButton			m_RouteUnlockButton;
+	ImageButton			m_ResetTrainPosButton;
 
 	std::array<TwoStatesButton*, 3> m_RouteButtons;
 
@@ -467,7 +471,10 @@ class Station : public WidgetsBase
 	auto GetCurrentTrainLocation() -> std::pair<StationSegments_e, StationSegments_e>;  // returns current segments for Head and tail positions
 	bool VerifySafetyConditions_ForRequestedRoute(RouteName_e RequestedRoute);
 	bool VerifyIfRouteCanBeUnlocked();
+	bool VerifyIfTrainCanApplyRoute();
 	void UnlockTheCurrentRoute();
+	void ManageTrackLightsState();
+	bool IsTrainOnFinalSegments();
 
 public:
 
@@ -492,20 +499,20 @@ class SchemeSegments
 {
 protected:
 
-	using PathsSegmentsMapType = std::map<std::string, PathSegment*>;
-	using ContactGroupsMapType = std::map<ContactsGroupName_e, RelayContactsGroup*>;
+	using PathSegmentsVecType = std::vector<std::unique_ptr<PathSegment>>;
+	using PathsSegmentsMapType = std::unordered_map<std::string, PathSegment*>;
+	using ContactGroupsMapType = std::unordered_map<ContactsGroupName_e, std::shared_ptr<RelayContactsGroup>>;
 
-	std::vector<PathSegment*>	m_PathSegments;
-	PathsSegmentsMapType		m_PathSegmentsMap;
-	ContactGroupsMapType		m_ContactGroupsMap;
-	PathSegment*				s2_entry_segment = nullptr;
-	PathSegment*				s1_entry_segment = nullptr;
-	Station						m_Station;
+	PathSegmentsVecType  m_PathSegments;
+	PathsSegmentsMapType m_PathSegmentsMap;
+	ContactGroupsMapType m_ContactGroupsMap;
+	PathSegment*		 s2_entry_segment = nullptr;
+	PathSegment*		 s1_entry_segment = nullptr;
+	Station				 m_Station;
 
 public:
 
 	SchemeSegments();
-	~SchemeSegments();
 
 	void ResetPathSegments();
 	void ResetConactGroups();
