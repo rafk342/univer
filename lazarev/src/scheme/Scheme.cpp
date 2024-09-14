@@ -281,9 +281,8 @@ PathSegment::PathSegment(const std::filesystem::path& _path)
 	}
 	helpers::InvertTexture(m_texture);
 	m_texture.generateMipmap();
-	m_sprite.setTexture(m_texture);
 	m_texture.setSmooth(true);
-	
+	m_sprite.setTexture(m_texture);
 	ResetSegment();
 }
 
@@ -776,7 +775,6 @@ sf::Color TracksideLights::GetFlashingScalar()
 		m_FlashingTimer.Update();
 		elapsedTime = m_FlashingTimer.GetElapsedSeconds();
 	}
-	
 
 	double normalizedTime = math::mapRange(elapsedTime, 0, FLASH_DURATION, 0, 1);
 	double easedTime = math::easeInOutSine(normalizedTime);
@@ -1449,8 +1447,17 @@ void Station::Draw()
 
 SchemeOverlay::SchemeOverlay() : WidgetsBase(overlay_path)
 {
+	auto rect = helpers::CalcTextureRect(m_texture);
+	m_texture.generateMipmap();
 	m_texture.setSmooth(true);
-	m_sprite.setPosition({ 0, 0 });
+	m_sprite.setTexture(m_texture);
+	if (rect)
+	{
+		m_sprite.setPosition(rect->left, rect->top);
+		m_sprite.setTextureRect(rect.value());
+	}
+	else
+		m_sprite.setPosition({ 0, 0 });
 }
 
 
@@ -1532,8 +1539,8 @@ SchemeSegments::SchemeSegments()
 		MAKE_GROUP(s1_c_2PK_1,	sf::Vector2f(787.0f,935.0f),	&r_2PK),
 		MAKE_GROUP(s1_c_2PK_2,	sf::Vector2f(787.0f,793.0f),	&r_2PK),
 		MAKE_GROUP(s1_c_2MK,	sf::Vector2f(785.0f,670.0f),	&r_2MK),
-		MAKE_GROUP(s1_c_4PK,	sf::Vector2f(998.0f,797.0f),	&r_4PK),
-		MAKE_GROUP(s1_c_4MK,	sf::Vector2f(997.0f,934.0f),	&r_4MK),
+		MAKE_GROUP(s1_c_4PK,	sf::Vector2f(997.0f,794.0f),	&r_4PK),
+		MAKE_GROUP(s1_c_4MK,	sf::Vector2f(997.0f,935.0f),	&r_4MK),
 
 		MAKE_GROUP(s1_c_1P,		sf::Vector2f(1189.0f,665.0f),	&r_1P),
 		MAKE_GROUP(s1_c_2P,		sf::Vector2f(1189.0f,785.0f),	&r_2P),

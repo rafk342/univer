@@ -36,10 +36,9 @@ void SFMLRenderer::Init()
 	m_Window = std::make_unique<sf::RenderWindow>(sf::VideoMode(1920, 1080), "Wnd", sf::Style::Default, settings);
 	m_Window->setFramerateLimit(frameLimit);
 	
-	m_view.setSize(sf::Vector2f(m_Window->getSize()));
-	m_view.setCenter(sf::Vector2f(m_Window->getSize()) / 2.f);
-	m_view.zoom(1.5);
-
+	m_view.setSize(sf::Vector2f({ m_Window->getSize().x * 1.05f, m_Window->getSize().y * 1.05f}));
+	m_view.setCenter(sf::Vector2f(m_Window->getSize()) / 2.0f);
+	m_view.zoom(1.65);
 	m_Window->setView(m_view);
 
 	SM_ASSERT(m_font.loadFromFile("c:\\Windows\\Fonts\\calibri.ttf"), "::SFMLRenderer() -> Failed to load font");
@@ -73,9 +72,7 @@ void SFMLRenderer::OnRender()
 		}
 		handleEvents();
 		
-		{
-			m_scheme.DrawScheme();
-		}
+		m_scheme.DrawScheme();
 		m_Window->setView(m_view);
 		m_Window->clear(sf::Color(200, 200, 200));
 		RenderRequests::DrawAll();
@@ -98,6 +95,11 @@ void SFMLRenderer::handleEvents()
 
 		if (m_event.type == sf::Event::Resized)
 		{
+		/*	auto ShemePixelsSize = sf::Vector2f(3167.26, 1781.58);
+
+			ShemePixelsSize.x *= m_event.size.width / (float)m_Window->getSize().x;
+			ShemePixelsSize.y *= m_event.size.height / (float)m_Window->getSize().y;*/
+
 			m_view.setSize(sf::Vector2f(m_Window->getSize()));
 			m_view.setCenter(sf::Vector2f(m_Window->getSize()) / 2.0f);
 		}

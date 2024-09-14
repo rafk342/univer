@@ -64,10 +64,12 @@ namespace helpers
 
 namespace math
 {
-    inline float angleBetweenPoints(const sf::Vector2f& p1, const sf::Vector2f& p2) {
+    inline float angleBetweenPoints(const sf::Vector2f& p1, const sf::Vector2f& p2) 
+    {
         return std::atan2(p2.y - p1.y, p2.x - p1.x) * 180.0f / PI;
     }
-    inline float lengthBetweenPoints(const sf::Vector2f& p1, const sf::Vector2f& p2) {
+    inline float lengthBetweenPoints(const sf::Vector2f& p1, const sf::Vector2f& p2) 
+    {
         return std::sqrt(std::pow(p2.x - p1.x, 2) + std::pow(p2.y - p1.y, 2));
     }
     inline double NormalizeValue(double a, double b, double x)

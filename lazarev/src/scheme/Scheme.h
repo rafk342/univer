@@ -385,7 +385,6 @@ class TracksideLights : public WidgetsBase
 	static inline sf::Color sm_White = { 255,255,255,255 };
 	static inline sf::Color sm_Green = { 135,187,120,255 };
 	static inline sf::Color sm_Yellow = { 200,193,74,255 };
-	//static inline sf::Color sm_Red = { 151,49,49,255 };
 	static inline sf::Color sm_Red = { 174,50,50,255 };
 	static constexpr double inline FLASH_DURATION = 1;
 	static constexpr double inline TRANSITION_DURATION = 0.5;
